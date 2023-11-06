@@ -32,7 +32,6 @@ class sigma:
             self.mu = minimize(lambda x: -self.value(np.array([x])), x0).x
         else:
             self.mu = minimize(lambda x: norm(self.grad(np.array([x]))), mu).x
-        print(self.mu)
 
     """
     - Evaluation of the scalar field for a vector of values -
@@ -54,42 +53,7 @@ class sigma:
             return self.sigma_func.grad(X)
 
     """
-    - Function to draw a 2D scalar field -
-    """
-    def draw_2D(self, fig=None, ax=None, xlim=30, ylim=30, cmap=MY_CMAP, n=256, contour_levels=0, contour_lw=0.3, cbar_sw=True):
-        if fig == None:
-            fig = plt.figure(figsize=(16, 9), dpi=100)
-            ax = fig.subplots()
-        elif ax == None:
-            ax = fig.subplots()
-
-        # Calculate
-        x = np.linspace(self.mu[0] - xlim, self.mu[0] + xlim, n)
-        y = np.linspace(self.mu[1] - ylim, self.mu[1] + ylim, n)
-        X, Y = np.meshgrid(x, y)
-
-        P = np.array([list(X.flatten()), list(Y.flatten())]).T
-        Z = self.value(P).reshape(n,n)
-
-        # Draw
-        ax.plot(self.mu[0], self.mu[1], "+k")
-        color_map = ax.pcolormesh(X, Y, Z, cmap=cmap)
-
-        if cbar_sw:
-            divider = make_axes_locatable(ax)
-            cax = divider.append_axes('right', size='2%', pad=0.05)
-
-            cbar = fig.colorbar(color_map, cax=cax)
-            cbar.set_label(label='$\sigma$ [u]', labelpad=10)
-
-        if contour_levels != 0:
-            contr_map = ax.contour(X, Y, Z, contour_levels, colors="k", linewidths=contour_lw, linestyles="-", alpha=0.2)
-            return color_map, contr_map
-        else:
-            return color_map,
-
-    """
-    - Function to draw a 2D scalar field -
+    - Function to draw a 3D scalar field -
     """
     def draw_3D(self, fig=None, ax=None, lim=30, cmap=MY_CMAP, n=30, contour_levels=0, contour_lw=0.3, cbar_sw=True):
         if fig == None:
@@ -108,64 +72,66 @@ class sigma:
         ax.set_zlim([-lim,lim])
 
         # Calculate
-        x = np.linspace(self.mu[0] - lim, self.mu[0] + lim, n)
-        y = np.linspace(self.mu[1] - lim, self.mu[1] + lim, n)
-        z = np.linspace(self.mu[2] - lim, self.mu[2] + lim, n)
-
-        Xx, Yx, Zx = np.meshgrid(self.mu[0], y, z)
-        Xy, Yy, Zy = np.meshgrid(x, self.mu[1], z)
+        x = np.linspace(- lim, lim, n)
+        y = np.linspace(- lim, lim, n)
+        z = np.linspace(- lim, lim, n)
+ 
+        Yx, Zx, Xx = np.meshgrid(y, z, self.mu[0])
+        Xy, Zy, Yy = np.meshgrid(x, z, self.mu[1])
         Xz, Yz, Zz = np.meshgrid(x, y, self.mu[2])
 
         Px = np.array([list(Xx.flatten()), list(Yx.flatten()), list(Zx.flatten())]).T
         Py = np.array([list(Xy.flatten()), list(Yy.flatten()), list(Zy.flatten())]).T
         Pz = np.array([list(Xz.flatten()), list(Yz.flatten()), list(Zz.flatten())]).T
 
-        #sigma_x = self.value(Px).reshape(n,n)
-        sigma_y = self.value(Py)
-        #sigma_z = self.value(Pz).reshape(n,n)
+        sigma_x = self.value(Px).reshape(n,n)
+        sigma_y = self.value(Py).reshape(n,n)
+        sigma_z = self.value(Pz).reshape(n,n)
 
-        # Draw
-        ax.contourf(Xy[0,:,:], Yy[0,:,:], sigma_y.reshape(n,n), zdir="z", offset=0)
+        # Draw colormaps
+        kw_cf = {"levels":contour_levels, "cmap":cmap, "alpha":0.5}
+        kw_c  = {"levels":contour_levels, "colors":"k", "linewidths":contour_lw, 
+                 "linestyles":"-", "alpha":0.02}
+        
+        ax.contourf(sigma_x, Yx[:,:,0], Zx[:,:,0], **kw_cf, zdir="x", offset=-lim)
+        ax.contour(sigma_x, Yx[:,:,0], Zx[:,:,0], **kw_c, zdir="x", offset=-lim)
+        
+        ax.contourf(Xy[:,:,0], sigma_y, Zy[:,:,0], **kw_cf, zdir="y", offset=lim)
+        ax.contour(Xy[:,:,0], sigma_y, Zy[:,:,0], **kw_c, zdir="y", offset=lim)
+        
+        ax.contourf(Xz[:,:,0], Yz[:,:,0], sigma_z, **kw_cf, zdir="z", offset=-lim)
+        ax.contour(Xz[:,:,0], Yz[:,:,0], sigma_z, **kw_c, zdir="z", offset=-lim)
+        
+        # Draw the center of the distribution
+        x0 = self.sigma_func.x0
+        ax.plot(x0[0], x0[1], x0[2], "xk")
+        ax.plot(x0[0], x0[1], x0[2], "ok", alpha=0.2)
 
 
     """\
     - Function to draw the gradient at a point -
-    * x: point where the gradient is to be drawn. [x,y]
+    * x: point where the gradient is to be drawn. [x,y,z]
     * ax: axis to plot on.
-    * width: arrow size.
-    * scale: scales the length of the arrow (smaller for larger scale values).
+    * length: arrow length.
     * zorder: overlay order in the plot.
     """
-    def draw_grad(self, x, ax, width=0.002, scale=30, zorder=2, alpha=1, ret_arr=True):
+    def draw_grad_3D(self, x, ax, length=1, zorder=2, alpha=0.8, lim=50):
         if type(x) == list:
             grad_x = self.grad(np.array(x))[0]
         else:
             grad_x = self.grad(x)[0]
         grad_x_unit = grad_x/norm(grad_x)
-        quiver = ax.quiver(x[0], x[1], grad_x_unit[0], grad_x_unit[1],
-                            width=width, scale=scale, zorder=zorder, alpha=alpha)
-        if ret_arr:
-            return quiver
-        else:
-            return grad_x_unit
 
-
-    """
-    - Funtion to compute and draw L^1 -
-    * pc: [x,y] position of the centroid
-    * X: (N x 2) matrix of agents position from the centroid
-    """
-    def draw_L1(self, pc, P):
-        N = P.shape[0]
-        X = P - pc
-
-        grad_pc = self.grad(np.array(pc))[0]
-        l1_sigma_hat = (grad_pc[:,None].T @ X.T) @ X
-
-        x_norms = np.zeros((N))
-        for i in range(N):
-            x_norms[i] = (X[i,:]) @ X[i,:].T
-            D_sqr = np.max(x_norms)
-
-        l1_sigma_hat = l1_sigma_hat / (N * D_sqr)
-        return l1_sigma_hat.flatten()
+        # 2D projection quivers
+        ax.quiver(x[0], x[1], -lim, grad_x_unit[0], grad_x_unit[1], 0,
+                  color="k", length=0.7*length, normalize=True, alpha=alpha, zorder=zorder)
+        
+        ax.quiver(x[0], lim, x[2], grad_x_unit[0], 0, grad_x_unit[2],
+                  color="k", length=0.7*length, normalize=True, alpha=alpha, zorder=zorder)
+        
+        ax.quiver(-lim, x[1], x[2], 0, grad_x_unit[1], grad_x_unit[2],
+                  color="k", length=0.7*length, normalize=True, alpha=alpha, zorder=zorder)
+        
+        # # 3D quiver
+        # ax.quiver(x[0], x[1], x[2], grad_x_unit[0], grad_x_unit[1], grad_x_unit[2],
+        #           color="k", length=length, normalize=True, alpha=alpha, zorder=zorder)

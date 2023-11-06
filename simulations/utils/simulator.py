@@ -22,8 +22,14 @@ class simulator:
 
         # Integrator parameters
         self.dt = dt
-        self.data = {"R": None, "p": None, "theta_e": None}
+        self.data = {"R": None, "p": None, "theta_e": None, "pc":None}
         self.update_data()
+
+    """\
+    - Compute and give the centroid position -
+    """
+    def get_pc(self):
+        return np.mean(self.p, axis=0)
 
     """\
     - Update the data dictionary -
@@ -32,6 +38,7 @@ class simulator:
         self.data["R"] = self.R
         self.data["p"] = self.p
         self.data["theta_e"] = self.theta_e
+        self.data["pc"] = self.get_pc()
 
     """\
     - Set the desired body frame orientation -

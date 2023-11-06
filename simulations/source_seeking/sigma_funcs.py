@@ -22,13 +22,13 @@ exp = lambda X,Q,mu: np.exp(np.sum((X - mu) * Q_prod_xi(Q,X - mu), axis=1))
 Gaussian function (3D).
   * x0: center of the Gaussian.
   * max_intensity: maximum intensity of the Gaussian.
-  * dev: models the width of the Gaussian.
+  * dev: models the width of the Gaussian (can be an scalar value or a 3D vector).
 """
 class sigma_gauss:
   def __init__(self, x0=[0,0,0], max_intensity=100, dev=10, S=None, R=None):
     self.n = len(x0)
     self.max_intensity = max_intensity
-    self.dev = dev
+    self.dev = np.array(dev)
 
     # Variables required by the sigma class
     self.x0  = np.array(x0)
@@ -43,9 +43,7 @@ class sigma_gauss:
   # Functions required by the sigma class
   def eval(self, X):
     X = filter_X_3D(X)
-    print(X)
-    sigma = self.max_intensity * exp(X,self.Q,self.x0) / np.sqrt(2*np.pi*self.dev**2)
-    return sigma
+    return self.max_intensity * exp(X,self.Q,self.x0) / (np.sqrt(2*np.pi) * np.prod(self.dev))
 
   def grad(self, X):
     X = filter_X_3D(X)
