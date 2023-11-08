@@ -9,6 +9,15 @@ import matplotlib.pyplot as plt
 # -- Numerical tools --
 from simulations.utils.tools_math import *
 
+# DPI resolution dictionary
+resolution_dic = {
+    "480p"   : 640,
+    "HD"     : 1280,
+    "FullHD" : 1920,
+    "2K"     : 2560,
+    "4K"     : 3880
+    }
+
 def plot_3d_sphere_wf(ax,r,lim):
     # Generate the 3D sphere wireframe
     theta = np.linspace(0, 2 * np.pi, 100)

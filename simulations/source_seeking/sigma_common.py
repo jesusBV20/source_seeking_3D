@@ -4,7 +4,6 @@
 """
 
 import numpy as np
-from numpy.linalg import norm
 from scipy.optimize import minimize
 
 import matplotlib.pyplot as plt
@@ -31,7 +30,7 @@ class sigma:
             x0 = self.sigma_func.x0 # Ask for help to find minimum
             self.mu = minimize(lambda x: -self.value(np.array([x])), x0).x
         else:
-            self.mu = minimize(lambda x: norm(self.grad(np.array([x]))), mu).x
+            self.mu = minimize(lambda x: np.linalg.norm(self.grad(np.array([x]))), mu).x
 
     """
     - Evaluation of the scalar field for a vector of values -
@@ -62,9 +61,9 @@ class sigma:
         elif ax == None:
             ax = fig.subplots(projection="3d")
 
-        ax.set_xlabel(r"$X$")
-        ax.set_ylabel(r"$Y$")  
-        ax.set_zlabel(r"$Z$")
+        ax.set_xlabel(r"$X [L]$")
+        ax.set_ylabel(r"$Y [L]$")  
+        ax.set_zlabel(r"$Z [L]$")
 
         ax.set_proj_type('ortho')
         ax.set_xlim([-lim,lim])
@@ -107,6 +106,13 @@ class sigma:
         ax.plot(x0[0], x0[1], x0[2], "xk")
         ax.plot(x0[0], x0[1], x0[2], "ok", alpha=0.2)
 
+        ax.plot(x0[0], x0[1], "xk", zdir="z", zs=-lim)
+        ax.plot(x0[0], x0[2], "xk", zdir="y", zs= lim)
+        ax.plot(x0[1], x0[2], "xk", zdir="x", zs=-lim)
+
+        ax.plot([x0[0], -lim], [x0[1],x0[1]], [x0[2],x0[2]], "-k", lw=0.5, alpha=0.5)
+        ax.plot([x0[0],x0[0]], [x0[1],lim], [x0[2],x0[2]], "-k", lw=0.5, alpha=0.5)
+        ax.plot([x0[0],x0[0]], [x0[1],x0[1]], [x0[2],-lim], "-k", lw=0.5, alpha=0.5)
 
     """\
     - Function to draw the gradient at a point -
@@ -120,7 +126,7 @@ class sigma:
             grad_x = self.grad(np.array(x))[0]
         else:
             grad_x = self.grad(x)[0]
-        grad_x_unit = grad_x/norm(grad_x)
+        grad_x_unit = grad_x/np.linalg.norm(grad_x)
 
         # 2D projection quivers
         ax.quiver(x[0], x[1], -lim, grad_x_unit[0], grad_x_unit[1], 0,

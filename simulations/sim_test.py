@@ -156,9 +156,9 @@ class sim_test:
         main_ax.set_ylim([-7,7])
         main_ax.set_zlim([-7,7])
         main_ax.set_title(self.title, fontsize=14)
-        main_ax.set_ylabel(r"$p_y$ (L)")  
-        main_ax.set_xlabel(r"$p_x$ (L)")
-        main_ax.set_zlabel(r"$p_z$ (L)")
+        main_ax.set_xlabel(r"$X$ (L)")
+        main_ax.set_ylabel(r"$Y$ (L)")  
+        main_ax.set_zlabel(r"$Z$ (L)")
         main_ax.grid(True)
 
         error_ax.set_ylabel(r"$|\theta|$")
@@ -246,9 +246,9 @@ class sim_test:
         main_ax.set_ylim([-7,7])
         main_ax.set_zlim([-7,7])
         main_ax.set_title(self.title, fontsize=14)
-        main_ax.set_ylabel(r"$p_y$ (L)")  
-        main_ax.set_xlabel(r"$p_x$ (L)")
-        main_ax.set_zlabel(r"$p_z$ (L)")
+        main_ax.set_xlabel(r"$X$ (L)")
+        main_ax.set_ylabel(r"$Y$ (L)")  
+        main_ax.set_zlabel(r"$Z$ (L)")
         main_ax.grid(True)
 
         # Draw icons and body frame quivers

@@ -15,6 +15,8 @@ from matplotlib.animation import FuncAnimation, FFMpegWriter
 
 # -- Numerical tools --
 from simulations.utils.tools_math import *
+from simulations.utils.tools_plot import resolution_dic
+
 from simulations.utils.simulator import simulator
 from simulations.utils.module_ss import module_ss
 
@@ -27,10 +29,11 @@ class sim_ss_test:
         self.n_agents = n_agents
         self.tf = tf
         self.dt = dt
-        self.data = {"R": None, "p": None, "theta_e": None, "pc":None}
+        self.data = {"R": None, "p": None, "theta_e": None, "pc":None, 
+                     "Lsigma":None, "grad_pc":None}
 
         # Generate the scalar field
-        sigma_func = sigma_gauss(x0=[50,40,40], max_intensity=100, dev=[20,20,30])
+        sigma_func = sigma_gauss(x0=[50,20,40], max_intensity=100, dev=[20,20,30])
         self.sigma = sigma(sigma_func)
 
         # Simulation frame parameters
@@ -40,7 +43,7 @@ class sim_ss_test:
         # Initial spacial position of the agents
         pc = np.array([-55,-55,-55])
         p0 = 2*(np.random.random((n_agents,3)) - 0.49) * 15 + pc
-        v0 = 5
+        v0 = 10
 
         # Generation the initial orientation of the body frames
         alfa_0  = 2*(np.random.rand((n_agents)) - 0.49) * np.pi # YAW
@@ -70,7 +73,6 @@ class sim_ss_test:
         self.arr_len = self.lim*0.05
         
 
-
     """\
     - Function to launch the numerical simulation -
     """
@@ -79,7 +81,10 @@ class sim_ss_test:
 
         # Initialise the data dictionary with empty arrays
         for data_key in self.data:
-            self.data[data_key] = np.empty((its, *self.sim.data[data_key].shape))
+            if data_key in self.sim.data:
+                self.data[data_key] = np.empty((its, *self.sim.data[data_key].shape))
+            elif data_key in self.ss_module.data:
+                self.data[data_key] = np.empty((its, *self.ss_module.data[data_key].shape))
 
         # As Y and Z are not fixed, we will apply an \omega_x rotation to the
         # reference desired rotation matrix
@@ -90,7 +95,10 @@ class sim_ss_test:
         for i in tqdm(range(its)):
             # - Collect data from the simulation engine
             for data_key in self.data:
-                self.data[data_key][i] = self.sim.data[data_key]
+                if data_key in self.sim.data:
+                    self.data[data_key][i] = self.sim.data[data_key]
+                elif data_key in self.ss_module.data:
+                    self.data[data_key][i] = self.ss_module.data[data_key]
 
             # - Set a new derired common orientation Re
             self.Lsgima = self.ss_module.l_sigma_hat_norm
@@ -145,7 +153,9 @@ class sim_ss_test:
         R_data = self.data["R"]
         error_data = self.data["theta_e"]
         pc_data = self.data["pc"]
-
+        lsigma_data = self.data["Lsigma"]
+        grad_data = self.data["grad_pc"]
+        
         # -- Plotting the summary --
         # Figure and grid init
         fig = plt.figure(figsize=(16,9))
@@ -155,13 +165,7 @@ class sim_ss_test:
         error_ax = fig.add_subplot(grid[2, 3:5])
 
         # Format of the axis
-        main_ax.set_xlim([-self.lim,self.lim])
-        main_ax.set_ylim([-self.lim,self.lim])
-        main_ax.set_zlim([-self.lim,self.lim])
         main_ax.set_title(self.title, fontsize=14)
-        main_ax.set_ylabel(r"$p_y$ (L)")  
-        main_ax.set_xlabel(r"$p_x$ (L)")
-        main_ax.set_zlabel(r"$p_z$ (L)")
         main_ax.grid(True)
 
         error_ax.set_ylabel(r"$|\theta|$")
@@ -197,6 +201,32 @@ class sim_ss_test:
         main_ax.plot(pc_data[:,0], pc_data[:,2], "--k", lw=1, zdir="y", zs= self.lim)
         main_ax.plot(pc_data[:,0], pc_data[:,1], "--k", lw=1, zdir="z", zs=-self.lim)
 
+        main_ax.plot([pc_data[0,0], -self.lim], [pc_data[0,1],pc_data[0,1]], [pc_data[0,2],pc_data[0,2]], "-k", lw=0.5, alpha=0.8)
+        main_ax.plot([pc_data[0,0], pc_data[0,0]], [pc_data[0,1],self.lim], [pc_data[0,2],pc_data[0,2]], "-k", lw=0.5, alpha=0.8)
+        main_ax.plot([pc_data[0,0], pc_data[0,0]], [pc_data[0,1],pc_data[0,1]], [pc_data[0,2],-self.lim], "-k", lw=0.5, alpha=0.8)
+        
+        # 2D quiver projections of the grad of sigma in pc and Lsigma
+        main_ax.quiver(pc_data[lf,0], pc_data[lf,1], -self.lim    , 
+                       0              , lsigma_data[lf,1], lsigma_data[lf,2],
+                       color="darkred", length=self.arr_len*2, normalize=True, alpha=1, zorder=2)
+        main_ax.quiver(pc_data[lf,0], self.lim     , pc_data[lf,2], 
+                       lsigma_data[lf,0], 0                 , lsigma_data[lf,2],
+                       color="darkred", length=self.arr_len*2, normalize=True, alpha=1, zorder=2)
+        main_ax.quiver(-self.lim    , pc_data[lf,1], pc_data[lf,2], 
+                       0              , lsigma_data[lf,1], lsigma_data[lf,2],
+                       color="darkred", length=self.arr_len*2, normalize=True, alpha=1, zorder=2)
+        
+        main_ax.quiver(pc_data[lf,0], pc_data[lf,1], -self.lim    , 
+                       0            , grad_data[lf,1], grad_data[lf,2],
+                       color="k", length=self.arr_len*2, normalize=True, alpha=1, zorder=1)
+        main_ax.quiver(pc_data[lf,0], self.lim       , pc_data[lf,2], 
+                       grad_data[lf,0], 0            , grad_data[lf,2],
+                       color="k", length=self.arr_len*2, normalize=True, alpha=1, zorder=1)
+        main_ax.quiver(-self.lim    , pc_data[lf,1], pc_data[lf,2], 
+                       0            , grad_data[lf,1], grad_data[lf,2],
+                       color="k", length=self.arr_len*2, normalize=True, alpha=1, zorder=1)
+
+
         # - Error plot -
         error_ax.grid(True)
         error_ax.axhline(0, c="k", ls="--", lw=1)
@@ -215,14 +245,20 @@ class sim_ss_test:
         # Update icons
         self.icons._offsets3d = (self.data["p"][i,:,0], self.data["p"][i,:,1], self.data["p"][i,:,2])
         
-        for n in range(self.data["R"].shape[1]):
-            #Update trace
-            if i > self.n_tail:
-                self.tails[n].set_data_3d(self.data["p"][i-self.n_tail:i,n,0], self.data["p"][i-self.n_tail:i,n,1], 
-                                          self.data["p"][i-self.n_tail:i,n,2])
-            else:
-                self.tails[n].set_data_3d(self.data["p"][0:i,n,0], self.data["p"][0:i,n,1], self.data["p"][0:i,n,2])
+        # Update pc tail
+        zeros_array =np.zeros(i)
+        self.pc_tail[0].set_data_3d(zeros_array - self.lim, self.data["pc"][0:i,1], self.data["pc"][0:i,2])
+        self.pc_tail[1].set_data_3d(self.data["pc"][0:i,0], zeros_array + self.lim, self.data["pc"][0:i,2])
+        self.pc_tail[2].set_data_3d(self.data["pc"][0:i,0], self.data["pc"][0:i,1], zeros_array - self.lim)
+        
+        self.pc_lines[0].set_data_3d([self.data["pc"][i,0], -self.lim], [self.data["pc"][i,1],self.data["pc"][i,1]], 
+                                     [self.data["pc"][i,2],self.data["pc"][i,2]])
+        self.pc_lines[1].set_data_3d([self.data["pc"][i,0], self.data["pc"][i,0]], [self.data["pc"][i,1], self.lim], 
+                                     [self.data["pc"][i,2],self.data["pc"][i,2]])
+        self.pc_lines[2].set_data_3d([self.data["pc"][i,0], self.data["pc"][i,0]], [self.data["pc"][i,1],self.data["pc"][i,1]], 
+                                     [self.data["pc"][i,2], -self.lim])
 
+        for n in range(self.data["R"].shape[1]):
             # Update axis quivers
             for k in range(3):
                 uvw = self.data["p"][i,n,:] + self.data["R"][i,n,k,:]*self.arr_len
@@ -235,56 +271,89 @@ class sim_ss_test:
     """"\
     - Funtion to generate the full animation of the simulation -
     """
-    def generate_animation(self, output_folder, tf_anim=None, res=1920, n_tail=200):
+    def generate_animation(self, output_folder, res_label="480p", tf_anim=None):
         if tf_anim is None:
             tf_anim = self.tf
 
         fps = 1/self.dt
         frames = int(tf_anim/self.dt-1)
-        self.n_tail = n_tail
 
         print("Animation parameters: ", {"fps":fps, "tf":tf_anim, "frames":frames})
 
-        # -- Plotting the summary --
+        # -- Extract data fields from data dictonary --
+        p_data = self.data["p"]
+        R_data = self.data["R"]
+        error_data = self.data["theta_e"]
+        pc_data = self.data["pc"]
+        lsigma_data = self.data["Lsigma"]
+        grad_data = self.data["grad_pc"]
+
+        # -- Initial state of the animation --
         # Figure and grid init
-        fig = plt.figure()
+        res = resolution_dic[res_label]
+        fig = plt.figure(figsize=(16,9), dpi=res/16)
         grid = plt.GridSpec(1, 1, hspace=0.1, wspace=0.4)
 
-        main_ax  = fig.add_subplot(grid[:, :], projection='3d')
+        main_ax  = fig.add_subplot(grid[:, :], projection='3d', computed_zorder=False)
 
         # Format of the axis
-        main_ax.set_xlim([-7,7])
-        main_ax.set_ylim([-7,7])
-        main_ax.set_zlim([-7,7])
         main_ax.set_title(self.title, fontsize=14)
-        main_ax.set_ylabel(r"$p_y$ (L)")  
-        main_ax.set_xlabel(r"$p_x$ (L)")
-        main_ax.set_zlabel(r"$p_z$ (L)")
         main_ax.grid(True)
 
+        # Draw the scalar field
+        self.sigma.draw_3D(fig=fig, ax=main_ax, lim=self.lim, contour_levels=40)
+
         # Draw icons and body frame quivers
-        self.icons = main_ax.scatter(self.data["p"][0,:,0], self.data["p"][0,:,1], self.data["p"][0,:,2], 
-                                     marker="o", color="k", alpha=0.5)
+        self.icons = main_ax.scatter(p_data[0,:,0], p_data[0,:,1], p_data[0,:,2], 
+                                     marker="o", color="k", alpha=0.5, s=5)
         
-        self.ax_arrows = np.empty((self.data["R"].shape[1],3), dtype=object)
-        self.tails = np.empty((self.data["R"].shape[1]), dtype=object)
-        for n in range(self.data["R"].shape[1]):
+        self.ax_arrows = np.empty((R_data.shape[1],3), dtype=object)
+        self.tails = np.empty((R_data.shape[1]), dtype=object)
+        for n in range(R_data.shape[1]):
             # Body frame axis
             for i in range(3):
-                arr = main_ax.quiver(self.data["p"][0,n,0], self.data["p"][0,n,1], self.data["p"][0,n,2],
-                            self.data["R"][0,n,i,0], self.data["R"][0,n,i,1], self.data["R"][0,n,i,2],
+                arr = main_ax.quiver(p_data[0,n,0], p_data[0,n,1], p_data[0,n,2],
+                            R_data[0,n,i,0], R_data[0,n,i,1], R_data[0,n,i,2],
                             color=self.ax_cols[i], length=self.arr_len, normalize=True)
                 self.ax_arrows[n,i] = arr
 
-            # Tail
-            tail, = main_ax.plot(self.data["p"][0,n,0], self.data["p"][0,n,1], self.data["p"][0,n,2], "k", lw=0.5, alpha=0.5)
-            self.tails[n] = tail
+        # Centroid tail 2D projection
+        tail_x, = main_ax.plot(-self.lim, pc_data[0,1], pc_data[0,2], "--k", lw=1)
+        tail_y, = main_ax.plot(pc_data[0,0], self.lim, pc_data[0,2],  "--k", lw=1)
+        tail_z, = main_ax.plot(pc_data[0,0], pc_data[0,1], self.lim,  "--k", lw=1)
+        self.pc_tail = np.array([tail_x, tail_y, tail_z], dtype=object)
 
+        pcline_x, = main_ax.plot([pc_data[0,0], -self.lim], [pc_data[0,1],pc_data[0,1]], [pc_data[0,2],pc_data[0,2]], "-k", lw=0.5, alpha=0.5)
+        pcline_y, = main_ax.plot([pc_data[0,0], pc_data[0,0]], [pc_data[0,1],self.lim], [pc_data[0,2],pc_data[0,2]], "-k", lw=0.5, alpha=0.5)
+        pcline_z, = main_ax.plot([pc_data[0,0], pc_data[0,0]], [pc_data[0,1],pc_data[0,1]], [pc_data[0,2],-self.lim], "-k", lw=0.5, alpha=0.5)
+        self.pc_lines = np.array([pcline_x, pcline_y, pcline_z], dtype=object)
+
+        # # 2D quiver projections of the grad of sigma in pc and Lsigma
+        # main_ax.quiver(pc_data[lf,0], pc_data[lf,1], -self.lim    , 
+        #                0              , lsigma_data[lf,1], lsigma_data[lf,2],
+        #                color="darkred", length=self.arr_len*2, normalize=True, alpha=1, zorder=2)
+        # main_ax.quiver(pc_data[lf,0], self.lim     , pc_data[lf,2], 
+        #                lsigma_data[lf,0], 0                 , lsigma_data[lf,2],
+        #                color="darkred", length=self.arr_len*2, normalize=True, alpha=1, zorder=2)
+        # main_ax.quiver(-self.lim    , pc_data[lf,1], pc_data[lf,2], 
+        #                0              , lsigma_data[lf,1], lsigma_data[lf,2],
+        #                color="darkred", length=self.arr_len*2, normalize=True, alpha=1, zorder=2)
+        
+        # main_ax.quiver(pc_data[lf,0], pc_data[lf,1], -self.lim    , 
+        #                0            , grad_data[lf,1], grad_data[lf,2],
+        #                color="k", length=self.arr_len*2, normalize=True, alpha=1, zorder=1)
+        # main_ax.quiver(pc_data[lf,0], self.lim       , pc_data[lf,2], 
+        #                grad_data[lf,0], 0            , grad_data[lf,2],
+        #                color="k", length=self.arr_len*2, normalize=True, alpha=1, zorder=1)
+        # main_ax.quiver(-self.lim    , pc_data[lf,1], pc_data[lf,2], 
+        #                0            , grad_data[lf,1], grad_data[lf,2],
+        #                color="k", length=self.arr_len*2, normalize=True, alpha=1, zorder=1)
+        
         # -- Animation --
         # Init of the animation class
         anim = FuncAnimation(fig, self.animate, frames=tqdm(range(frames), initial=1, position=0), interval=1/fps*1000/4)
 
         # Generate and save the animation
         writer = FFMpegWriter(fps=fps, metadata=dict(artist='Jesús Bautista Villar'), bitrate=10000)
-        anim.save(os.path.join(output_folder, "anim__{0}_{1}_{2}__{3}_{4}_{5}.mp4".format(*time.localtime()[0:6])), 
+        anim.save(os.path.join(output_folder, "anim__ss_{0}_{1}_{2}__{3}_{4}_{5}.mp4".format(*time.localtime()[0:6])), 
                 writer = writer)

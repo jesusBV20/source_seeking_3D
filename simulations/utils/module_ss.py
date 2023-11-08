@@ -13,14 +13,25 @@ class module_ss:
         n = self.sim_eng.p.shape[1]
         self.l_sigma_hat = np.zeros(n)
         self.l_sigma_hat_norm = np.zeros(n)
+        self.data = {"Lsigma": None, "grad_pc":None}
         
         # Make the first computation of L_sigma
         self.compute_Lsigma()
-    
+
     """\
-    Funtion to compute L_sigma.
-    * X: (n_agents x n) matrix of agents position from the centroid
-    * sigma: (n_agents) vector of simgma_values on each row of X
+    - Funtion to update the data output of the module to the simulation frame -
+    """
+    def update_data(self):
+        # Compute the gradient
+        grad_x = self.sigma_field.grad(self.sim_eng.get_pc())[0]
+        grad_x = grad_x/np.linalg.norm(grad_x)
+
+        # Update data
+        self.data["Lsigma"] = self.l_sigma_hat_norm
+        self.data["grad_pc"] = grad_x
+
+    """\
+    - Funtion to compute L_sigma -
     """
     def compute_Lsigma(self):
         X = self.sim_eng.p - self.sim_eng.get_pc()
@@ -44,3 +55,5 @@ class module_ss:
         
         self.l_sigma_hat = l_sigma_hat.flatten()
         self.l_sigma_hat_norm = l_sigma_hat_norm.flatten()
+
+        self.update_data()

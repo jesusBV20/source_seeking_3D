@@ -107,11 +107,12 @@ class simulator:
         self.error_rot()
         omega_hat = self.rot_controller()
 
-        # Rotation integrator
+        # Euler integration
         for n in range(self.N):
             # Compute the exponential map
             exp_dt_omega = exp_map_of_R(self.dt*omega_hat[n,...])
-            # Apply the omega rotation matrix
+            
+            # Rotation integrator
             self.R[n,...] = self.R[n,...] @ exp_dt_omega
 
             # Position integrator
