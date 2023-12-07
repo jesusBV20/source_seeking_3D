@@ -12,4 +12,4 @@ Throughout this project, you will find the following features:
 * A Proportional + Derivative feedback controller for the 3D heading. It is implemented in SO(3) and works for systems with 3 DOF (degrees of freedom). 
 * Some numerical tools to compute the mathematical expression that we need to work in SO(3) (e.g., different techniques to compute the exp and log map).
     
--> [Bautista V., Jesús](https://sites.google.com/view/jbautista-research) is the main maintainer of this repository. He welcomes any inquiries or requests for further information and can be reached via email at <jesbauti20@gmail.com>.
+-> [Jesús Bautista Villar](https://sites.google.com/view/jbautista-research) is the main maintainer of this repository. He welcomes any inquiries or requests for further information and can be reached via email at <jesbauti20@gmail.com>.
