@@ -55,7 +55,7 @@ class sim_test:
         # -------------------------------------------------
         # Plotting configurable parameters
         self.title = ""
-        self.ax_cols = ["b","darkred","r"]
+        self.ax_cols = ["r","g","b"]
         self.n_tail = 50
         self.arr_len = arr_len
 
@@ -258,7 +258,7 @@ class sim_test:
         self.ax_arrows = np.empty((self.data["R"].shape[1],3), dtype=object)
         self.tails = np.empty((self.data["R"].shape[1]), dtype=object)
         for n in range(self.data["R"].shape[1]):
-            # Body frame axis
+            # Body frame axes
             for i in range(3):
                 arr = main_ax.quiver(self.data["p"][0,n,0], self.data["p"][0,n,1], self.data["p"][0,n,2],
                             self.data["R"][0,n,i,0], self.data["R"][0,n,i,1], self.data["R"][0,n,i,2],
