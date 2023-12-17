@@ -18,25 +18,32 @@ def rot_3d_matrix(alfa, beta, gamma, dec=2):
     R = Rx @ Ry @ Rz
     return np.round(R, decimals=dec)
 
-"""\
-- Compute the vector \omega corresponding to a given R ∈ SO(3) -
-"""
-def omega_from_R(R):
-    # Compute the eigenvalues and eigenvectors Rv = λ v
-    eigval, eigvec = np.linalg.eig(R)
+# """\
+# - Compute the vector \omega corresponding to a given R ∈ SO(3) -
+# """
+# def omega_from_R(R):
+#     # Compute the eigenvalues and eigenvectors Rv = λ v
+#     eigval, eigvec = np.linalg.eig(R)
 
-    # It is known that \omega lies in the null space of (R - I),
-    # so we can find \omega looking for the eigenvector of R
-    # corresponding to the eigenvalue λ = 1 
-    omega = eigvec[:,np.abs(eigval.real - 1) < 0.01].real
-    return  omega
+#     # It is known that \omega lies in the null space of (R - I),
+#     # so we can find \omega looking for the eigenvector of R
+#     # corresponding to the eigenvalue λ = 1 
+#     omega = eigvec[:,np.abs(eigval.real - 1) < 0.01].real
+#     return  omega
 
 """\
-- Generate \omega_\hat ∈ so(3) from the \omega vector -
+- Isomorphism computation: rotation vector \omega <-> so(3)  -
 """
-def omega_hat_from_omega(omega):
+
+# Generate \omega_\hat ∈ so(3) from the \omega vector
+def so3_hat(omega):
     wx, wy, wz = omega[0], omega[1], omega[2]
     return  np.array([[0,-wz,wy],[wz,0,-wx],[-wy,wx,0]])
+
+# Generate \omega vector from \omega_\hat ∈ so(3)
+def so3_vee(omega_hat):
+    wx, wy, wz = omega_hat[2,1], omega_hat[0,2], omega_hat[1,0]
+    return  wx, wy, wz
 
 """\
 - Compute the distance in the tangent plane (theta) corresponding to a given R ∈ SO(3) -
@@ -74,56 +81,54 @@ def exp_map_of_R(R,n=6):
 """\
 - Compute the logaritmic map corresponding to a given R ∈ SO(3) -
 """
-def log_map_of_R(R):
-    # Fist, we compute the angular distance |θ|
+def log_map_of_R(R, n=5):
+    log_R = np.zeros((3,3))
     theta = theta_distance_from_R(R)
+    
+    if theta > 0.96*np.pi:
+        omega_pi = np.sqrt((np.array([R[0,0], R[1,1], R[2,2]])+1)/2)
+        log_R = so3_hat(omega_pi)
 
-    if theta > np.pi*0.93:
-        return log_map_pi(R)
-        # omega = np.sqrt(np.abs((np.array([R[0,0],R[1,1],R[2,2]]) + 1))/2)
-        # return omega_hat_from_omega(omega)
+    elif theta > np.pi/6:
+        # Compute the logarithmic map by making small rotations and calculating the log map centered
+        # on different tangent spaces
+        
+        Ri = np.eye(3)
+        for i in range(n):
+            # Since we compute the rotation vector \omega_i ()
+            Reval = Ri.T@R
+            theta_i = theta_distance_from_R(Reval)
+            
+            # Compute \theta_i / 2sin(\theta_i) -- (Rotation angle from Ri to R)
+            theta_sin = theta_i/2 / np.sin(theta_i)
 
-    # Let us approximate \frac{θ}{2 sin θ} with Euler if θ is small
-    if theta < np.pi/4:
-        theta_sin = 1/2 + theta**2/12 + 7*theta**4/720 # O(θ^6)
+            # But rotate just (n - i)^-1 times \theta_i. Note that when i = n-1 we rotate \theta_i
+            theta_sin = theta_sin / (n - i)
+
+            # Then compute the \omega_hat of this rotation (from the tangent plane of Ri)
+            log_Ri_Ri = theta_sin * (Reval - Reval.T)
+            
+            # Move this \omega_hat to the tangent plane of I (Lie Algebra): compute the Adjoint map
+            log_Ri_I = Ri.T@log_Ri_Ri@Ri
+
+            # Add the computed rotation to the last one (both are now in the Lie Algebra)
+            log_R = log_R + log_Ri_I
+
+            # Apply the whole rotation and compute the new rotation matrix
+            Ri = Ri@exp_map_of_R(log_Ri_I)
+
     else:
-        theta_sin = theta/2/np.sin(theta)
-    
-    # And then we can easily compute the log(R) = \frac{θ}{2 sin θ} * (R - R^T)
-    log_R = theta_sin * (R - R.T)
+        # Compute the log map directrly into the tanget plane of I
+
+        # Since theta is small, we can compute \theta / 2sin(\theta)
+        # by approximating the expression using a truncated Taylor series:
+        theta_sin = 1/2 + theta**2/12 + 7*theta**4/720 # O(θ^6)
+        log_R = theta_sin * (R - R.T)
+
+    # Clean the diagonal (elements may not be zero due to computational errors)
+    log_R[0,0], log_R[1,1], log_R[2,2] = 0, 0, 0
+
     return log_R
-    
-
-def log_map_pi(R):
-    #source: https://github.com/nurlanov-zh/so3_log_map/blob/main/so3_log_map_analysis.ipynb
-
-    trR = R[0, 0] + R[1, 1] + R[2, 2]
-    cos_theta = max(min(0.5 * (trR - 1), 1), -1)
-    sin_theta = 0.5 * np.sqrt(max(0, (3 - trR) * (1 + trR)))
-    theta = np.arctan2(sin_theta, cos_theta)
-    R_minus_R_T_vee = np.array([R[2, 1] - R[1, 2], R[0, 2] - R[2, 0], R[1, 0] - R[0, 1]])
-
-    S = R + R.transpose() + (1 - trR) * np.eye(3)
-    rest_tr = 3 - trR
-    n = np.ones(3)
-
-    # Fix modules of n_i
-    for i in range(3):
-        n[i] = np.sqrt(max(0, S[i, i] / rest_tr))
-    max_i = np.argmax(n)
-
-    # Fix signs according to the sign of max element
-    for i in range(3):
-        if i != max_i:
-            n[i] *= np.sign(S[max_i, i])
-
-    # Fix an overall sign
-    if any(np.sign(n) * np.sign(R_minus_R_T_vee) < 0):
-        n = -n
-    omega = theta * n
-
-    # Build \omega_\hat
-    return omega_hat_from_omega(omega) 
 
 """\
 - Select one of the possible perpendicular vector to v ∈ R^3 -
