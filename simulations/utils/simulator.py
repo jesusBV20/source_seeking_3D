@@ -110,7 +110,7 @@ class simulator:
         # Euler integration
         for n in range(self.N):
             # Compute the exponential map
-            exp_dt_omega = exp_map_of_R(self.dt*omega_hat[n,...])
+            exp_dt_omega = exp_map(self.dt*omega_hat[n,...])
             
             # Rotation integrator
             self.R[n,...] = self.R[n,...] @ exp_dt_omega

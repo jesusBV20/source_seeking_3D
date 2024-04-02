@@ -110,11 +110,11 @@ class sim_test:
             step = np.pi/6
             if omega_hat_xi[2,1] >= step:
                 for k in range(int(omega_hat_xi[2,1] // (step))):
-                    R = (R.T @ exp_map_of_R((step) * omega_hat_x / self.wx)).T
+                    R = (R.T @ exp_map((step) * omega_hat_x / self.wx)).T
                 
-                R = (R.T @ exp_map_of_R(omega_hat_xi[2,1] % (step) * omega_hat_x / self.wx)).T
+                R = (R.T @ exp_map(omega_hat_xi[2,1] % (step) * omega_hat_x / self.wx)).T
             else:
-                R = (R.T @ exp_map_of_R(omega_hat_xi)).T
+                R = (R.T @ exp_map(omega_hat_xi)).T
 
             # Once the rotation is applied, now we set the desired Re
             self.sim.set_R_desired(R)

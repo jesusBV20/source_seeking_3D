@@ -37,6 +37,9 @@ def plot_3d_sphere_wf(ax,r,lim):
 def filter_R_data(R_data):
     # The final R_adata shape should be: (time_frames, agents, 3, 3)
 
+    if len(R_data.shape) == 2: # One agent SO3 state
+        return R_data[None,None,...]
+    
     if R_data.shape[2] != 3 or R_data.shape[3] != 3:
         print("ERROR: The dimensionality of R_data {0:s} is wrong.".format(str(R_data.shape)),
               "Remember that the correct shape is (time_frames, agents, 3, 3).")
@@ -48,9 +51,6 @@ def filter_R_data(R_data):
     # If the R_data dimensionality < 4 then we suppose the
     elif len(R_data.shape) == 3: # One agent trajectory
         return R_data[None,...]
-
-    elif len(R_data.shape) == 2: # One agent SO3 state
-        return R_data[None,None,...]
 
     else:
         print("ERROR: The dimensionality of R_data {0:s} is wrong.".format(str(R_data.shape)),
@@ -97,26 +97,37 @@ def plot_heading_traj(R_data, view=(25,-50), lim=1.6, ax=None):
     # Plot the 3D sphere and its 2D projections
     plot_3d_sphere_wf(main_ax,1,lim)
     
-    for n in range(R_data.shape[1]):
-        # Plot the 3D heading trajectories
-        main_ax.plot(u[0,n,0,0], u[0,n,0,1], u[0,n,0,2], "or", markersize=2, alpha=0.5)
-        main_ax.plot(u[:,n,0,0], u[:,n,0,1], u[:,n,0,2], "b", lw=0.8, alpha=0.8)
-        if R_data.shape[0] > 1:
-            main_ax.plot(u[-1,n,0,0], u[-1,n,0,1], u[-1,n,0,2], "or", markersize=3, alpha=1)
-        
-        # Plot the 2D heading trajectories projections
-        main_ax.plot(u[0,n,0,0], u[0,n,0,1], "og", zdir='z', zs=-lim, markersize=2, alpha=0.5)
-        main_ax.plot(u[0,n,0,0], u[0,n,0,2], "og", zdir='y', zs= lim, markersize=2, alpha=0.5)
-        main_ax.plot(u[0,n,0,1], u[0,n,0,2], "og", zdir='x', zs=-lim, markersize=2, alpha=0.5)
+    if R_data.shape[1] > 1:
+        for n in range(R_data.shape[1]):
+            # Plot the 3D heading trajectories
+            main_ax.plot(u[0,n,0,0], u[0,n,0,1], u[0,n,0,2], "or", markersize=2, alpha=0.5)
+            main_ax.plot(u[:,n,0,0], u[:,n,0,1], u[:,n,0,2], "b", lw=0.8, alpha=0.8)
+            if R_data.shape[0] > 1:
+                main_ax.plot(u[-1,n,0,0], u[-1,n,0,1], u[-1,n,0,2], "or", markersize=3, alpha=1)
+            
+            # Plot the 2D heading trajectories projections
+            main_ax.plot(u[0,n,0,0], u[0,n,0,1], "og", zdir='z', zs=-lim, markersize=2, alpha=0.5)
+            main_ax.plot(u[0,n,0,0], u[0,n,0,2], "og", zdir='y', zs= lim, markersize=2, alpha=0.5)
+            main_ax.plot(u[0,n,0,1], u[0,n,0,2], "og", zdir='x', zs=-lim, markersize=2, alpha=0.5)
 
-        main_ax.plot(u[:,n,0,0], u[:,n,0,1], "r", zdir='z', zs=-lim, alpha=0.5)
-        main_ax.plot(u[:,n,0,0], u[:,n,0,2], "r", zdir='y', zs= lim, alpha=0.5)
-        main_ax.plot(u[:,n,0,1], u[:,n,0,2], "r", zdir='x', zs=-lim, alpha=0.5)
+            main_ax.plot(u[:,n,0,0], u[:,n,0,1], "r", zdir='z', zs=-lim, alpha=0.5)
+            main_ax.plot(u[:,n,0,0], u[:,n,0,2], "r", zdir='y', zs= lim, alpha=0.5)
+            main_ax.plot(u[:,n,0,1], u[:,n,0,2], "r", zdir='x', zs=-lim, alpha=0.5)
 
-        if R_data.shape[0] > 1:
-            main_ax.plot(u[-1,n,0,0], u[-1,n,0,1], "og", zdir='z', zs=-lim, markersize=2, alpha=1)
-            main_ax.plot(u[-1,n,0,0], u[-1,n,0,2], "og", zdir='y', zs= lim, markersize=2, alpha=1)
-            main_ax.plot(u[-1,n,0,1], u[-1,n,0,2], "og", zdir='x', zs=-lim, markersize=2, alpha=1)
+            if R_data.shape[0] > 1:
+                main_ax.plot(u[-1,n,0,0], u[-1,n,0,1], "og", zdir='z', zs=-lim, markersize=2, alpha=1)
+                main_ax.plot(u[-1,n,0,0], u[-1,n,0,2], "og", zdir='y', zs= lim, markersize=2, alpha=1)
+                main_ax.plot(u[-1,n,0,1], u[-1,n,0,2], "og", zdir='x', zs=-lim, markersize=2, alpha=1)
+
+    else:
+        n = 0
+        # Plot the 3D heading point
+        main_ax.plot(u[0,n,0,0], u[0,n,0,1], u[0,n,0,2], "or", markersize=4, alpha=1)
+
+        # Plot the 2D heading point projections
+        main_ax.plot(u[0,n,0,0], u[0,n,0,1], "or", zdir='z', zs=-lim, markersize=2, alpha=1)
+        main_ax.plot(u[0,n,0,0], u[0,n,0,2], "or", zdir='y', zs= lim, markersize=2, alpha=1)
+        main_ax.plot(u[0,n,0,1], u[0,n,0,2], "or", zdir='x', zs=-lim, markersize=2, alpha=1)
 
 
 """\

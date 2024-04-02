@@ -64,19 +64,19 @@ def theta_distance_from_R(R):
     return theta
 
 """\
-- Compute the exponencial map corresponding to a given R ∈ SO(3) -
+- Compute the exponencial map corresponding to a given tau^\wedge ∈ so(3) -
 """
-def exp_map_of_R(R,n=6):
-    # Given Exp(R) = \sum_{k=0}^{\infty} \frac{R^k}{k!} as one 
+def exp_map(A,n=6):
+    # Given Exp(A) = \sum_{k=0}^{\infty} \frac{A^k}{k!} as one 
     # possible formal definition of the exponential. We can easily
     # aproximate the exponential as follows:
-    #           Exp(R) = I + R + R^2/2! + ... + R^n/n! + O(R^n)
-    exp_R, R_i = np.eye(3), np.eye(3)
+    #           Exp(A) = I + A + A^2/2! + ... + A^n/n! + O(A^n)
+    exp_A, A_i = np.eye(3), np.eye(3)
     for i in range(n):
-        R_i = R_i @ R
-        exp_R = exp_R + R_i / np.math.factorial(i+1)
+        A_i = A_i @ A
+        exp_A = exp_A + A_i / np.math.factorial(i+1)
         
-    return exp_R
+    return exp_A
 
 """\
 - Compute the logaritmic map corresponding to a given R ∈ SO(3) -
@@ -115,7 +115,7 @@ def log_map_of_R(R, n=5):
             log_R = log_R + log_Ri_I
 
             # Apply the whole rotation and compute the new rotation matrix
-            Ri = Ri@exp_map_of_R(log_Ri_I)
+            Ri = Ri@exp_map(log_Ri_I)
 
     else:
         # Compute the log map directrly into the tanget plane of I
