@@ -7,13 +7,13 @@ import numpy as np
 """\
 - Generate R ∈ SO(3) composing ROLL, PITCH and YAW rotation matrices -
 """
-def rot_3d_matrix(alfa, beta, gamma, dec=2):
+def rot_3d_matrix(psi, theta, phi, dec=2):
     # ROLL
-    Rx = np.array([[1,0,0],[0,np.cos(gamma),-np.sin(gamma)],[0,np.sin(gamma),np.cos(gamma)]])
+    Rx = np.array([[1,0,0],[0,np.cos(phi),-np.sin(phi)],[0,np.sin(phi),np.cos(phi)]])
     # PITCH
-    Ry = np.array([[np.cos(beta),0,np.sin(beta)],[0,1,0],[-np.sin(beta),0,np.cos(beta)]]) 
+    Ry = np.array([[np.cos(theta),0,np.sin(theta)],[0,1,0],[-np.sin(theta),0,np.cos(theta)]]) 
     # YAW
-    Rz = np.array([[np.cos(alfa),-np.sin(alfa),0],[np.sin(alfa),np.cos(alfa),0],[0,0,1]]) 
+    Rz = np.array([[np.cos(psi),-np.sin(psi),0],[np.sin(psi),np.cos(psi),0],[0,0,1]]) 
     
     R = Rx @ Ry @ Rz
     return np.round(R, decimals=dec)
