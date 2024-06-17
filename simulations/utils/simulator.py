@@ -74,29 +74,29 @@ class simulator:
     """
     def error_rot(self):
         self.theta_e = np.zeros(self.N)
-        self.Re = np.zeros(self.R.shape)
+        self.Ra = np.zeros(self.R.shape)
         for n in range(self.N):
             # Rotation error matrix
-            self.Re[n,...] = self.Rd[n,...].T @ self.R[n,...]
+            self.Ra[n,...] = self.Rd[n,...].T @ self.R[n,...]
 
-            # Get the angle error by computing the angle distance of Re
-            self.theta_e[n] = theta_distance_from_R(self.Re[n,...])
+            # Get the angle error by computing the angle distance of Ra
+            self.theta_e[n] = theta_distance_from_R(self.Ra[n,...])
     
     """\
     - 3D rotation controller  -
     """
     def rot_controller(self):
-        log_Re = np.zeros(self.R.shape)
+        log_Ra = np.zeros(self.R.shape)
         omega_hat = np.zeros(self.R.shape)
         for n in range(self.N):
-            log_Re[n,...] = log_map_of_R(self.Re[n,...])
+            log_Ra[n,...] = log_map_of_R(self.Ra[n,...])
 
             # If Rd_dot != I then apply the feedback controller 
             if not np.allclose(self.Rd_dot[n,...],np.zeros((3,3))):
-                omega_hat[n,...] = self.R[n,...].T @ self.Rd_dot[n,...] @ self.Re[n,...]
+                omega_hat[n,...] = self.R[n,...].T @ self.Rd_dot[n,...] @ self.Ra[n,...]
                 
         # Proportional controller
-        omega_hat = - self.kw * log_Re + omega_hat
+        omega_hat = - self.kw * log_Ra + omega_hat
 
         return omega_hat
 

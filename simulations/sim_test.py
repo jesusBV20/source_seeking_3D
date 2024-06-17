@@ -19,7 +19,8 @@ from simulations.utils.simulator import simulator
 
 class sim_test:
     def __init__(self, n_agents=4, tf = 20, dt = 1/60, wx = 6*np.pi, 
-                 L1 = np.array([[0,0,1]]), fb_control = True, v_rotation = True,
+                 L1 = np.array([[0,0,1]]), L1_2 = np.array([[0,1,0]]), t2=10, 
+                 fb_control = True, v_rotation = True,
                  sim_kw={}, arr_len=0.3):
         self.n_agents = n_agents
         self.tf = tf
@@ -50,7 +51,11 @@ class sim_test:
 
         # Set the initial derired common orientation
         self.L1 = L1
+        self.L1_2 = L1_2
         self.sim.set_R_desired(get_R_from_v(self.L1[0]))
+
+        # Set the intant when the desired common orientation will change
+        self.t2 = t2
 
         # -------------------------------------------------
         # Plotting configurable parameters
@@ -65,6 +70,7 @@ class sim_test:
     """
     def numerical_simulation(self):
         its = int(self.tf/self.dt) + 1
+        it_2 = int(self.t2/self.dt) + 1
 
         # Initialise the data dictionary with empty arrays
         for data_key in self.data:
@@ -84,15 +90,11 @@ class sim_test:
             for data_key in self.data:
                 self.data[data_key][i] = self.sim.data[data_key]
 
-
-            # - Set a new derired common orientation Re
+            # - Set a new derired common orientation Ra
             
-            # Rotate the vector that we want to aling with X
-            if self.v_rotation:
-                if i >= its/2:
-                    Rl = rot_3d_matrix(0,self.dt*np.pi/10,-self.dt*np.pi/10)
-
-                self.L1 = self.L1 @ Rl
+            # Change the vector that we want to aling with X
+            if i >= it_2:
+                self.L1 = self.L1_2
 
             # Generate the ny and nz (ortogonal vector to L1)
             R = get_R_from_v(self.L1[0])
@@ -116,7 +118,7 @@ class sim_test:
             else:
                 R = (R.T @ exp_map(omega_hat_xi)).T
 
-            # Once the rotation is applied, now we set the desired Re
+            # Once the rotation is applied, now we set the desired Ra
             self.sim.set_R_desired(R)
 
             # Inform to the controller how Rd will change next
@@ -161,7 +163,7 @@ class sim_test:
         main_ax.set_zlabel(r"$Z$ (L)")
         main_ax.grid(True)
 
-        error_ax.set_ylabel(r"$|\theta|$")
+        error_ax.set_ylabel(r"\mu_{R_a}$")
         error_ax.set_xlabel(r"t [T]")
         error_ax.grid(True)
         
@@ -196,6 +198,73 @@ class sim_test:
 
         plt.show()
 
+    """\
+    - Function to generate the summary graphical plot of the whole simulation -
+    """
+    def plot_article_figure(self, t_list=None):
+        if t_list is None:
+            t_list = [0, self.tf]
+
+        ti, tf = t_list[0], t_list[-1]
+        li, lf = int(ti/self.dt), int(tf/self.dt)
+
+        # -- Extract data fields from data dictonary --
+        p_data = self.data["p"]
+        R_data = self.data["R"]
+        error_data = self.data["theta_e"]
+
+        # -- Plotting the summary --
+        # Figure and grid init
+        fig = plt.figure(figsize=(16,4))
+        grid = plt.GridSpec(1, 3, hspace=0.1, wspace=0.4)
+
+        main_ax = fig.add_subplot(grid[:, 0], projection='3d')
+        error_ax = fig.add_subplot(grid[:, 1:3])
+
+        # Format of the axis
+        main_ax.set_xlim([-7,7])
+        main_ax.set_ylim([-7,7])
+        main_ax.set_zlim([-7,7])
+        main_ax.set_title(self.title, fontsize=14)
+        main_ax.set_xlabel(r"$X$ (L)")
+        main_ax.set_ylabel(r"$Y$ (L)")  
+        main_ax.set_zlabel(r"$Z$ (L)")
+        main_ax.grid(True)
+
+        error_ax.set_ylabel(r"\mu_{R_a}$")
+        error_ax.set_xlabel(r"t [T]")
+        error_ax.grid(True)
+        
+        # -> 3D main plot
+        # Icons
+        main_ax.scatter(self.data["p"][li,:,0], self.data["p"][li,:,1], self.data["p"][li,:,2], 
+                        marker="o", color="k", alpha=0.5)
+        main_ax.scatter(self.data["p"][lf,:,0], self.data["p"][lf,:,1], self.data["p"][lf,:,2], 
+                        marker="o", color="k")
+
+        # Body frame axes
+        for n in range(R_data.shape[1]):
+            for i in range(3):
+                main_ax.quiver(p_data[li,n,0], p_data[li,n,1], p_data[li,n,2],
+                            R_data[li,n,i,0], R_data[li,n,i,1], R_data[li,n,i,2],
+                            color=self.ax_cols[i], length=self.arr_len, normalize=True, alpha=0.3)
+                
+                main_ax.quiver(p_data[lf,n,0], p_data[lf,n,1], p_data[lf,n,2],
+                            R_data[lf,n,i,0], R_data[lf,n,i,1], R_data[lf,n,i,2],
+                            color=self.ax_cols[i], length=self.arr_len, normalize=True, alpha=1)
+        
+            # Tail
+            main_ax.plot(p_data[:,n,0], p_data[:,n,1], p_data[:,n,2], "k", lw=0.5, alpha=0.5)
+
+        # -> Error plot
+        error_ax.grid(True)
+        error_ax.axhline(0, c="k", ls="--", lw=1)
+        time_vec = np.linspace(0, self.tf, int(self.tf/self.dt) + 1)
+
+        for n in range(R_data.shape[1]):
+            error_ax.plot(time_vec, error_data[:,n], "b", lw=1)
+
+        plt.show()
 
     """"\
     - Animation function update -
