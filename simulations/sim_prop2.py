@@ -17,12 +17,12 @@ from matplotlib.animation import FuncAnimation, FFMpegWriter
 from simulations.utils.tools_math import *
 from simulations.utils.simulator import simulator
 
-class sim_test:
-    def __init__(self, n_agents=4, tf = 20, dt = 1/60, wx = 6*np.pi, 
-                 L1 = np.array([[0,0,1]]), L1_2 = np.array([[0,1,0]]), t2=10, 
-                 fb_control = True, v_rotation = True,
-                 sim_kw={}, arr_len=0.3):
-        self.n_agents = n_agents
+class sim_prop2:
+    def __init__(self, wx, wd, mu_re_star, L1,
+                 tf = 20, dt = 1/60, fb_control = True, 
+                 arr_len = 0.3):
+        
+        self.n_agents = 2
         self.tf = tf
         self.dt = dt
         self.data = {"R": None, "p": None, "theta_e": None}
@@ -30,47 +30,43 @@ class sim_test:
         # Simulation frame parameters
         self.wx = wx
         self.fb_control = fb_control
-        self.v_rotation = v_rotation
+
+        self.wd = wd
+        self.mu_re_star = mu_re_star
 
         # Initial spacial position of the agents
-        p0 = 2*(np.random.random((n_agents,3)) - 0.49) * 5
-        v0 = 1
+        p0 = np.array([[-2, 2.5, 2],[-2, 0, -2]])
+        v0 = 0.5
 
         # Generation the initial orientation of the body frames
-        alfa_0  = 2*(np.random.rand((n_agents)) - 0.49) * np.pi # YAW
-        beta_0  = 2*(np.random.rand((n_agents)) - 0.49) * np.pi # PITCH
-        gamma_0 = 2*(np.random.rand((n_agents)) - 0.49) * np.pi # ROLL
+        alfa_0  = 2*(np.random.rand((self.n_agents)) - 0.49) * np.pi # YAW
+        beta_0  = 2*(np.random.rand((self.n_agents)) - 0.49) * np.pi # PITCH
+        gamma_0 = 2*(np.random.rand((self.n_agents)) - 0.49) * np.pi # ROLL
 
-        R = np.repeat(np.eye(3)[None,:,:], n_agents, axis=0)
-        for n in range(n_agents):
+        R = np.repeat(np.eye(3)[None,:,:], self.n_agents, axis=0)
+        for n in range(self.n_agents):
             R[n,:,:] = rot_3d_matrix(alfa_0[n], beta_0[n], gamma_0[n])
 
         # -------------------------------------------------
         # Generate the simulation engine
-        self.sim = simulator(p0=p0, R0=R, v0=v0, dt=self.dt, **sim_kw)
+        self.sim = simulator(p0=p0, R0=R, v0=v0, dt=self.dt, kw=np.sqrt(wd/mu_re_star))
 
         # Set the initial derired common orientation
         self.L1 = L1
-        self.L1_2 = L1_2
         self.sim.set_R_desired(get_R_from_v(self.L1[0]))
-
-        # Set the intant when the desired common orientation will change
-        self.t2 = t2
 
         # -------------------------------------------------
         # Plotting configurable parameters
-        self.title = ""
         self.ax_cols = ["r","g","b"]
         self.n_tail = 50
         self.arr_len = arr_len
 
 
-    """\
-    - Function to launch the numerical simulation -
-    """
     def numerical_simulation(self):
+        """\
+        - Function to launch the numerical simulation -
+        """
         its = int(self.tf/self.dt) + 1
-        it_2 = int(self.t2/self.dt) + 1
 
         # Initialise the data dictionary with empty arrays
         for data_key in self.data:
@@ -93,8 +89,8 @@ class sim_test:
             # - Set a new derired common orientation Ra
             
             # Change the vector that we want to aling with X
-            if i >= it_2:
-                self.L1 = self.L1_2
+            Rl = exp_map(self.dt*0.8*so3_hat([0,0,self.wd]))
+            self.L1 = self.L1 @ Rl 
 
             # Generate the ny and nz (ortogonal vector to L1)
             R = get_R_from_v(self.L1[0])
@@ -129,16 +125,11 @@ class sim_test:
             # - Simulator euler step integration
             self.sim.int_euler()
 
-
-    """\
-    - Function to generate the summary graphical plot of the whole simulation -
-    """
-    def plot_summary(self, t_list=None):
-        if t_list is None:
-            t_list = [0, self.tf]
-
-        ti, tf = t_list[0], t_list[-1]
-        li, lf = int(ti/self.dt), int(tf/self.dt)
+    def plot_article_figure(self, lims=None):
+        """
+        - Function to generate the article figure -
+        """ 
+        n = 0
 
         # -- Extract data fields from data dictonary --
         p_data = self.data["p"]
@@ -147,129 +138,79 @@ class sim_test:
 
         # -- Plotting the summary --
         # Figure and grid init
-        fig = plt.figure(figsize=(16,4))
-        grid = plt.GridSpec(1, 3, hspace=0.1, wspace=0.4)
+        fig = plt.figure(figsize=(12,4), dpi=300)
+        grid = plt.GridSpec(1, 3, hspace=0, wspace=0)
 
-        main_ax = fig.add_subplot(grid[:, 0], projection='3d')
-        error_ax = fig.add_subplot(grid[:, 1:3])
+        error_ax = fig.add_subplot(grid[:, 0:2])
+        main_ax = fig.add_subplot(grid[:, 2], projection='3d')
 
         # Format of the axis
-        main_ax.set_xlim([-7,7])
-        main_ax.set_ylim([-7,7])
-        main_ax.set_zlim([-7,7])
-        main_ax.set_title(self.title, fontsize=14)
-        main_ax.set_xlabel(r"$X$ (L)")
-        main_ax.set_ylabel(r"$Y$ (L)")  
-        main_ax.set_zlabel(r"$Z$ (L)")
+        if lims is None:
+            lims = [-2,2]
+        main_ax.set_xlim(lims)
+        main_ax.set_ylim(lims)
+        main_ax.set_zlim(lims)
+        main_ax.set_xlabel(r"$X$", fontsize=11)
+        main_ax.set_ylabel(r"$Y$", fontsize=11)  
+        main_ax.set_zlabel(r"$Z$", fontsize=11)
+        main_ax.set_box_aspect(aspect=None, zoom=0.8)
         main_ax.grid(True)
 
-        error_ax.set_ylabel(r"\mu_{R_a}$")
-        error_ax.set_xlabel(r"t [T]")
+        error_ax.set_ylabel(r"$\mu_{R_e}$")
+        error_ax.set_xlabel(r"$t$ [T]")
         error_ax.grid(True)
+
+        error_ax.set_ylim([-0.2,np.pi+0.2])
         
         # -> 3D main plot
-        # Icons
-        main_ax.scatter(self.data["p"][li,:,0], self.data["p"][li,:,1], self.data["p"][li,:,2], 
-                        marker="o", color="k", alpha=0.5)
-        main_ax.scatter(self.data["p"][lf,:,0], self.data["p"][lf,:,1], self.data["p"][lf,:,2], 
-                        marker="o", color="k")
+        ti, tf = 0, self.tf
+        li, lf = int(0/self.dt), int(self.tf/self.dt)
 
-        # Body frame axes
-        for n in range(R_data.shape[1]):
+        for n in range(self.n_agents):
+            # Icons
+            main_ax.scatter(self.data["p"][li,:,0], self.data["p"][li,:,1], self.data["p"][li,:,2], 
+                            marker="o", color="k")
+            main_ax.scatter(self.data["p"][lf,:,0], self.data["p"][lf,:,1], self.data["p"][lf,:,2], 
+                            marker="o", color="k")
+
+            # Body frame axes
             for i in range(3):
                 main_ax.quiver(p_data[li,n,0], p_data[li,n,1], p_data[li,n,2],
                             R_data[li,n,i,0], R_data[li,n,i,1], R_data[li,n,i,2],
-                            color=self.ax_cols[i], length=self.arr_len, normalize=True, alpha=0.3)
+                            color=self.ax_cols[i], length=self.arr_len, normalize=True, alpha=1)
                 
                 main_ax.quiver(p_data[lf,n,0], p_data[lf,n,1], p_data[lf,n,2],
                             R_data[lf,n,i,0], R_data[lf,n,i,1], R_data[lf,n,i,2],
                             color=self.ax_cols[i], length=self.arr_len, normalize=True, alpha=1)
-        
+                    
             # Tail
-            main_ax.plot(p_data[:,n,0], p_data[:,n,1], p_data[:,n,2], "k", lw=0.5, alpha=0.5)
+            main_ax.plot(p_data[:,n,0], p_data[:,n,1], p_data[:,n,2], "k", lw=1.5, alpha=0.5)
+
+        # Text labels
+        n = 0
+        main_ax.text(p_data[li,n,0]-1, p_data[li,n,1], p_data[li,n,2]+0.5, r"$t$ = {0:.0f}".format(ti))
 
         # -> Error plot
         error_ax.grid(True)
-        error_ax.axhline(0, c="k", ls="--", lw=1)
-        time_vec = np.linspace(0, self.tf, int(self.tf/self.dt) + 1)
+        error_ax.axvline(0, c="k", ls="-", lw=1)
+        error_ax.axhline(0, c="k", ls="-", lw=1)
 
+        error_ax.text(self.tf-2.7, self.mu_re_star+0.2, r"$\mu_{R_e}^*$", color="r")
+        error_ax.text(self.tf-1.6, self.mu_re_star+0.2, r"= {0:.1f}".format(self.mu_re_star), color="r")
+
+        time_vec = np.linspace(self.dt, self.tf, int(self.tf/self.dt))
         for n in range(R_data.shape[1]):
-            error_ax.plot(time_vec, error_data[:,n], "b", lw=1)
+            error_ax.plot(time_vec, error_data[1:,n], "b", lw=1)
+
+        error_ax.axhline(self.mu_re_star, c="r", ls="--", lw=1, alpha=1)
 
         plt.show()
 
-    """\
-    - Function to generate the summary graphical plot of the whole simulation -
-    """
-    def plot_article_figure(self, t_list=None):
-        if t_list is None:
-            t_list = [0, self.tf]
 
-        ti, tf = t_list[0], t_list[-1]
-        li, lf = int(ti/self.dt), int(tf/self.dt)
-
-        # -- Extract data fields from data dictonary --
-        p_data = self.data["p"]
-        R_data = self.data["R"]
-        error_data = self.data["theta_e"]
-
-        # -- Plotting the summary --
-        # Figure and grid init
-        fig = plt.figure(figsize=(16,4))
-        grid = plt.GridSpec(1, 3, hspace=0.1, wspace=0.4)
-
-        main_ax = fig.add_subplot(grid[:, 0], projection='3d')
-        error_ax = fig.add_subplot(grid[:, 1:3])
-
-        # Format of the axis
-        main_ax.set_xlim([-7,7])
-        main_ax.set_ylim([-7,7])
-        main_ax.set_zlim([-7,7])
-        main_ax.set_title(self.title, fontsize=14)
-        main_ax.set_xlabel(r"$X$ (L)")
-        main_ax.set_ylabel(r"$Y$ (L)")  
-        main_ax.set_zlabel(r"$Z$ (L)")
-        main_ax.grid(True)
-
-        error_ax.set_ylabel(r"\mu_{R_a}$")
-        error_ax.set_xlabel(r"t [T]")
-        error_ax.grid(True)
-        
-        # -> 3D main plot
-        # Icons
-        main_ax.scatter(self.data["p"][li,:,0], self.data["p"][li,:,1], self.data["p"][li,:,2], 
-                        marker="o", color="k", alpha=0.5)
-        main_ax.scatter(self.data["p"][lf,:,0], self.data["p"][lf,:,1], self.data["p"][lf,:,2], 
-                        marker="o", color="k")
-
-        # Body frame axes
-        for n in range(R_data.shape[1]):
-            for i in range(3):
-                main_ax.quiver(p_data[li,n,0], p_data[li,n,1], p_data[li,n,2],
-                            R_data[li,n,i,0], R_data[li,n,i,1], R_data[li,n,i,2],
-                            color=self.ax_cols[i], length=self.arr_len, normalize=True, alpha=0.3)
-                
-                main_ax.quiver(p_data[lf,n,0], p_data[lf,n,1], p_data[lf,n,2],
-                            R_data[lf,n,i,0], R_data[lf,n,i,1], R_data[lf,n,i,2],
-                            color=self.ax_cols[i], length=self.arr_len, normalize=True, alpha=1)
-        
-            # Tail
-            main_ax.plot(p_data[:,n,0], p_data[:,n,1], p_data[:,n,2], "k", lw=0.5, alpha=0.5)
-
-        # -> Error plot
-        error_ax.grid(True)
-        error_ax.axhline(0, c="k", ls="--", lw=1)
-        time_vec = np.linspace(0, self.tf, int(self.tf/self.dt) + 1)
-
-        for n in range(R_data.shape[1]):
-            error_ax.plot(time_vec, error_data[:,n], "b", lw=1)
-
-        plt.show()
-
-    """"\
-    - Animation function update -
-    """
     def animate(self, i):
+        """"
+        - Animation function update -
+        """
         # Update icons
         self.icons._offsets3d = (self.data["p"][i,:,0], self.data["p"][i,:,1], self.data["p"][i,:,2])
         
@@ -290,10 +231,11 @@ class sim_test:
         # return self.ax_arrows
 
 
-    """"\
-    - Funtion to generate the full animation of the simulation -
-    """
+
     def generate_animation(self, output_folder, tf_anim=None, res=1920, n_tail=200):
+        """
+        - Funtion to generate the full animation of the simulation -
+        """
         if tf_anim is None:
             tf_anim = self.tf
 
@@ -314,7 +256,6 @@ class sim_test:
         main_ax.set_xlim([-7,7])
         main_ax.set_ylim([-7,7])
         main_ax.set_zlim([-7,7])
-        main_ax.set_title(self.title, fontsize=14)
         main_ax.set_xlabel(r"$X$ (L)")
         main_ax.set_ylabel(r"$Y$ (L)")  
         main_ax.set_zlabel(r"$Z$ (L)")

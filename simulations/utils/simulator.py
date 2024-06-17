@@ -45,58 +45,58 @@ class simulator:
     """
     def set_R_desired(self, input_matrix, n=None): 
         if n is None and len(input_matrix.shape) == 3:
-            self.Rd = np.copy(input_matrix)
+            self.Ra = np.copy(input_matrix)
             self.error_rot()
         elif n is None and len(input_matrix.shape) == 2:
-            self.Rd = np.ones(self.R.shape) * np.copy(input_matrix)
+            self.Ra = np.ones(self.R.shape) * np.copy(input_matrix)
             self.error_rot()
         elif n is not None and len(input_matrix.shape) == 2:
-            self.Rd[n,:] = np.copy(input_matrix)
+            self.Ra[n,:] = np.copy(input_matrix)
             self.error_rot()
         else:
-            print("ERROR: can not set the desired Rd matrix. Wrong shape! -")
+            print("ERROR: can not set the desired Ra matrix. Wrong shape! -")
 
     """\
     - Set the rate of change of the desired body frame orientation -
     """
     def set_R_desired_dot(self, input_matrix, n=None): 
         if n is None and len(input_matrix.shape) == 3:
-            self.Rd_dot = input_matrix
+            self.Ra_dot = input_matrix
         elif n is None and len(input_matrix.shape) == 2:
-            self.Rd_dot = np.ones(self.R.shape) * input_matrix
+            self.Ra_dot = np.ones(self.R.shape) * input_matrix
         elif n is not None and len(input_matrix.shape) == 2:
-            self.Rd_dot[n,:] = input_matrix
+            self.Ra_dot[n,:] = input_matrix
         else:
-            print("ERROR: can not set the desired Rd_dot matrix. Wrong shape! -")
+            print("ERROR: can not set the desired Ra_dot matrix. Wrong shape! -")
 
     """\
     - Computate the orientation error for every body frame  -
     """
     def error_rot(self):
         self.theta_e = np.zeros(self.N)
-        self.Ra = np.zeros(self.R.shape)
+        self.Re = np.zeros(self.R.shape)
         for n in range(self.N):
             # Rotation error matrix
-            self.Ra[n,...] = self.Rd[n,...].T @ self.R[n,...]
+            self.Re[n,...] = self.Ra[n,...].T @ self.R[n,...]
 
-            # Get the angle error by computing the angle distance of Ra
-            self.theta_e[n] = theta_distance_from_R(self.Ra[n,...])
+            # Get the angle error by computing the angle distance of Re
+            self.theta_e[n] = theta_distance_from_R(self.Re[n,...])
     
     """\
     - 3D rotation controller  -
     """
     def rot_controller(self):
-        log_Ra = np.zeros(self.R.shape)
+        log_Re = np.zeros(self.R.shape)
         omega_hat = np.zeros(self.R.shape)
         for n in range(self.N):
-            log_Ra[n,...] = log_map_of_R(self.Ra[n,...])
+            log_Re[n,...] = log_map_of_R(self.Re[n,...])
 
-            # If Rd_dot != I then apply the feedback controller 
-            if not np.allclose(self.Rd_dot[n,...],np.zeros((3,3))):
-                omega_hat[n,...] = self.R[n,...].T @ self.Rd_dot[n,...] @ self.Ra[n,...]
+            # If Ra_dot != I then apply the feedback controller 
+            if not np.allclose(self.Ra_dot[n,...],np.zeros((3,3))):
+                omega_hat[n,...] = self.R[n,...].T @ self.Ra_dot[n,...] @ self.Re[n,...]
                 
         # Proportional controller
-        omega_hat = - self.kw * log_Ra + omega_hat
+        omega_hat = - self.kw * log_Re + omega_hat
 
         return omega_hat
 
