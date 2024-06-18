@@ -49,7 +49,7 @@ class sim_prop2:
 
         # -------------------------------------------------
         # Generate the simulation engine
-        self.sim = simulator(p0=p0, R0=R, v0=v0, dt=self.dt, kw=np.sqrt(wd/mu_re_star))
+        self.sim = simulator(p0=p0, R0=R, v0=v0, dt=self.dt, kw=[np.sqrt(2)*wd/mu_re_star[0], np.sqrt(2)*wd/mu_re_star[1]])
 
         # Set the initial derired common orientation
         self.L1 = L1
@@ -89,7 +89,7 @@ class sim_prop2:
             # - Set a new derired common orientation Ra
             
             # Change the vector that we want to aling with X
-            Rl = exp_map(self.dt*0.8*so3_hat([0,0,self.wd]))
+            Rl = exp_map(so3_hat([0,0,self.dt*self.wd]))
             self.L1 = self.L1 @ Rl 
 
             # Generate the ny and nz (ortogonal vector to L1)
@@ -128,7 +128,7 @@ class sim_prop2:
     def plot_article_figure(self, lims=None):
         """
         - Function to generate the article figure -
-        """ 
+        """
         n = 0
 
         # -- Extract data fields from data dictonary --
@@ -195,14 +195,14 @@ class sim_prop2:
         error_ax.axvline(0, c="k", ls="-", lw=1)
         error_ax.axhline(0, c="k", ls="-", lw=1)
 
-        error_ax.text(self.tf-2.7, self.mu_re_star+0.2, r"$\mu_{R_e}^*$", color="r")
-        error_ax.text(self.tf-1.6, self.mu_re_star+0.2, r"= {0:.1f}".format(self.mu_re_star), color="r")
+        #error_ax.text(self.tf-2.7, self.mu_re_star+0.2, r"$\mu_{R_e}^*$", color="r")
+        #error_ax.text(self.tf-1.6, self.mu_re_star+0.2, r"= {0:.1f}".format(self.mu_re_star), color="r")
 
         time_vec = np.linspace(self.dt, self.tf, int(self.tf/self.dt))
         for n in range(R_data.shape[1]):
             error_ax.plot(time_vec, error_data[1:,n], "b", lw=1)
 
-        error_ax.axhline(self.mu_re_star, c="r", ls="--", lw=1, alpha=1)
+        #error_ax.axhline(self.mu_re_star, c="r", ls="--", lw=1, alpha=1)
 
         plt.show()
 

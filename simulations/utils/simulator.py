@@ -16,13 +16,18 @@ class simulator:
         self.N = self.R.shape[0]
 
         # Controller variables and parameters
-        self.kw = kw
+        if isinstance(kw,list):
+            self.kw = np.array(kw)
+        else:
+            self.kw = np.array([kw for n in range(self.N)])
+        print(self.kw)
         self.set_R_desired(self.R)
         self.set_R_desired_dot(np.zeros((3,3)))
 
         # Integrator parameters
         self.dt = dt
-        self.data = {"R": None, "p": None, "theta_e": None, "pc":None}
+        self.data = {"R": None, "p": None, "theta_e": None, "delta": None,
+                     "pc": None, "Re": None, "log_Re_vee": None}
         self.update_data()
 
     """\
@@ -38,7 +43,10 @@ class simulator:
         self.data["R"] = self.R
         self.data["p"] = self.p
         self.data["theta_e"] = self.theta_e
+        self.data["delta"] = self.delta
         self.data["pc"] = self.get_pc()
+        self.data["Re"] = self.Re
+        self.data["log_Re_vee"] = self.log_Re_vee
 
     """\
     - Set the desired body frame orientation -
@@ -73,30 +81,39 @@ class simulator:
     - Computate the orientation error for every body frame  -
     """
     def error_rot(self):
-        self.theta_e = np.zeros(self.N)
         self.Re = np.zeros(self.R.shape)
+        self.log_Re = np.zeros(self.R.shape)
+        self.log_Re_vee = np.zeros(self.p.shape)
+        self.theta_e = np.zeros(self.N)
+        self.delta = np.zeros(self.N)
+
         for n in range(self.N):
             # Rotation error matrix
             self.Re[n,...] = self.Ra[n,...].T @ self.R[n,...]
+            self.log_Re[n,...] = log_map_of_R(self.Re[n,...])
+            self.log_Re_vee[n,...] = so3_vee(self.log_Re[n,...])
 
             # Get the angle error by computing the angle distance of Re
             self.theta_e[n] = theta_distance_from_R(self.Re[n,...])
-    
+
+            # Get the angle between x and x_a (delta)
+            cos_delta = self.Ra[n,:,0].T @ self.R[n,:,0]
+            cos_delta = np.where(cos_delta > 1, 1, cos_delta)
+            cos_delta = np.where(cos_delta < -1, -1, cos_delta)
+            self.delta[n] = np.arccos(cos_delta)
+
     """\
     - 3D rotation controller  -
     """
     def rot_controller(self):
-        log_Re = np.zeros(self.R.shape)
         omega_hat = np.zeros(self.R.shape)
         for n in range(self.N):
-            log_Re[n,...] = log_map_of_R(self.Re[n,...])
-
             # If Ra_dot != I then apply the feedback controller 
             if not np.allclose(self.Ra_dot[n,...],np.zeros((3,3))):
                 omega_hat[n,...] = self.R[n,...].T @ self.Ra_dot[n,...] @ self.Re[n,...]
                 
-        # Proportional controller
-        omega_hat = - self.kw * log_Re + omega_hat
+            # Proportional controller
+            omega_hat[n,...] = - self.kw[n] * self.log_Re[n,...] + omega_hat[n,...]
 
         return omega_hat
 

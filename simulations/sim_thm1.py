@@ -222,11 +222,12 @@ class sim_thm1:
                 new_segs = [[self.data["p"][i,n,:].tolist(), uvw.tolist()]]
                 self.ax_arrows[n,k].set_segments(new_segs)
         
+        self.txt_title.set_text("N = {0:>4} | t = {1:>5.2f} [T]".format(self.n_agents, i*self.dt))
         # return self.ax_arrows
 
 
 
-    def generate_animation(self, output_folder, tf_anim=None, res=1920, n_tail=200):
+    def generate_animation(self, output_folder, tf_anim=None, res=1920, n_tail=200, lims=None):
         """
         - Funtion to generate the full animation of the simulation -
         """
@@ -247,14 +248,17 @@ class sim_thm1:
         main_ax  = fig.add_subplot(grid[:, :], projection='3d')
 
         # Format of the axis
-        main_ax.set_xlim([-7,7])
-        main_ax.set_ylim([-7,7])
-        main_ax.set_zlim([-7,7])
-        main_ax.set_title(self.title, fontsize=14)
-        main_ax.set_xlabel(r"$X$ (L)")
-        main_ax.set_ylabel(r"$Y$ (L)")  
-        main_ax.set_zlabel(r"$Z$ (L)")
+        if lims is None:
+            lims = [-2,2]
+        main_ax.set_xlim(lims)
+        main_ax.set_ylim(lims)
+        main_ax.set_zlim(lims)
+        main_ax.set_xlabel(r"$X$", fontsize=11)
+        main_ax.set_ylabel(r"$Y$", fontsize=11)  
+        main_ax.set_zlabel(r"$Z$", fontsize=11)
         main_ax.grid(True)
+
+        self.txt_title = main_ax.set_title("")
 
         # Draw icons and body frame quivers
         self.icons = main_ax.scatter(self.data["p"][0,:,0], self.data["p"][0,:,1], self.data["p"][0,:,2], 
