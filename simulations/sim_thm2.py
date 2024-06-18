@@ -36,25 +36,20 @@ class sim_thm2:
         self.mu_re_star = mu_re_star
 
         # Initial spacial position of the agents
-        p0 = np.array([[-2, 2.5, 0]])
-        v0 = v
+        self.p0 = np.array([[-2, 2.5, 0]])
+        self.v0 = v
 
         # Generation the initial orientation of the body frames
         alfa_0  = 2*(np.random.rand((self.n_agents)) - 0.49) * np.pi # YAW
         beta_0  = 2*(np.random.rand((self.n_agents)) - 0.49) * np.pi # PITCH
         gamma_0 = 2*(np.random.rand((self.n_agents)) - 0.49) * np.pi # ROLL
 
-        R = np.repeat(np.eye(3)[None,:,:], self.n_agents, axis=0)
+        self.R = np.repeat(np.eye(3)[None,:,:], self.n_agents, axis=0)
         for n in range(self.n_agents):
-            R[n,:,:] = rot_3d_matrix(alfa_0[n], beta_0[n], gamma_0[n])
-
-        # -------------------------------------------------
-        # Generate the simulation engine
-        self.sim = simulator(p0=p0, R0=R, v0=v0, dt=self.dt, kw=np.sqrt(2)*wd/mu_re_star)
+            self.R[n,:,:] = rot_3d_matrix(alfa_0[n], beta_0[n], gamma_0[n])
 
         # Set the initial derired common orientation
-        self.L1 = L1
-        self.sim.set_R_desired(get_R_from_v(self.L1[0]))
+        self.L1_0 = L1
 
         # -------------------------------------------------
         # Plotting configurable parameters
@@ -68,6 +63,13 @@ class sim_thm2:
         - Function to launch the numerical simulation -
         """
         its = int(self.tf/self.dt) + 1
+
+        # Generate the simulation engine
+        self.sim = simulator(p0=self.p0, R0=self.R, v0=self.v0, dt=self.dt, kw=np.sqrt(2)*self.wd/self.mu_re_star)
+
+        # Set the initial derired common orientation
+        self.L1 = self.L1_0
+        self.sim.set_R_desired(get_R_from_v(self.L1[0]))
 
         # Initialise the data dictionary with empty arrays
         for data_key in self.data:
@@ -126,7 +128,7 @@ class sim_thm2:
             # - Simulator euler step integration
             self.sim.int_euler()
 
-    def plot_article_figure(self, lims=None):
+    def plot_article_figure(self, output_folder=None, lims=None):
         """
         - Function to generate the article figure -
         """ 
@@ -199,41 +201,35 @@ class sim_thm2:
         error_ax.axvline(0, c="k", ls="-", lw=1)
         error_ax.axhline(0, c="k", ls="-", lw=1)
 
-        error_ax.text(self.tf-2.7, self.mu_re_star+0.2, r"$\mu_{R_e}^*$", color="r")
-        error_ax.text(self.tf-1.6, self.mu_re_star+0.2, r"= {0:.1f}".format(self.mu_re_star), color="r")
-
+        # Time evolution of the attitude error
         time_vec = np.linspace(self.dt, self.tf, int(self.tf/self.dt))
         for n in range(R_data.shape[1]):
             error_ax.plot(time_vec, error_data[1:,n], "b", lw=1)
 
+        # Desired attitude error dashed line
+        error_ax.text(self.tf-2.7, self.mu_re_star+0.2, r"$\mu_{R_e}^*$", color="r")
+        error_ax.text(self.tf-1.6, self.mu_re_star+0.2, r"= {0:.1f}".format(self.mu_re_star), color="r")
         error_ax.axhline(self.mu_re_star, c="r", ls="--", lw=1, alpha=1)
 
         # -> Delta plot
         delta_ax.axvline(0, c="k", ls="-", lw=1)
         delta_ax.axhline(0, c="k", ls="-", lw=1)
 
-        delta_ax.text(self.tf-2.7, self.mu_re_star+0.2, r"$\delta*$", color="r")
-        delta_ax.text(self.tf-1.8, self.mu_re_star+0.2, r"= {0:.1f}".format(self.mu_re_star), color="r")
-
+        # Time evolution of delta
         time_vec = np.linspace(self.dt, self.tf, int(self.tf/self.dt))
         for n in range(R_data.shape[1]):
             delta_ax.plot(time_vec, delta_data[1:,n], "b", lw=1)
 
+        # Desired delta dashed line
+        delta_ax.text(self.tf-2.7, self.mu_re_star+0.2, r"$\delta*$", color="r")
+        delta_ax.text(self.tf-1.8, self.mu_re_star+0.2, r"= {0:.1f}".format(self.mu_re_star), color="r")
         delta_ax.axhline(self.mu_re_star, c="r", ls="--", lw=1, alpha=1)
 
+        # Save and show the plot ----------------
+        if output_folder is not None:
+            fig.savefig(os.path.join(output_folder, "anim_thm2.png"))
+            
         plt.show()
-
-        # test = np.zeros(Re_data.shape[0])
-        # for i in range(len(test)):
-        #     Re = np.squeeze(Re_data[i,:,:])
-        #     log_Re_vee = np.squeeze(log_Re_vee_data[i,...])
-        #     test[i] = np.dot(log_Re_vee, Re @ np.array([[0,0,self.wd]]).T)
-
-        # plt.axhline(self.wd*self.mu_re_star, c="r", ls="--", lw=1)
-        # plt.axhline(-self.wd*self.mu_re_star, c="r", ls="--", lw=1)
-        # plt.plot(time_vec, test[1:], "b", lw=1.2)
-        # plt.grid(True)
-        # plt.show()
 
 
     def animate(self, i):
@@ -256,13 +252,13 @@ class sim_thm2:
                 uvw = self.data["p"][i,n,:] + self.data["R"][i,n,k,:]*self.arr_len
                 new_segs = [[self.data["p"][i,n,:].tolist(), uvw.tolist()]]
                 self.ax_arrows[n,k].set_segments(new_segs)
-        
-        self.txt_title.set_text("N = {0:>4} | t = {1:>5.2f} [T]".format(self.n_agents, i*self.dt))
-        # return self.ax_arrows
+
+        self.txt_title.set_text("N = {0:} | t = {1:>5.2f} [T] \n".format(self.n_agents, i*self.dt, int(self.wx/np.pi)) +
+                                "$w^k$ = $[${}$\pi,0,0]$ | $k_\omega$ = {:.1f} | ".format(int(self.wx/np.pi), self.sim.kw[0]) +
+                                "$w^u$ = $[0,0,\pi/${}$]$".format(int(np.pi/self.wd)))
 
 
-
-    def generate_animation(self, output_folder, tf_anim=None, res=1920, n_tail=200, lims=None, gif=False, fps=None):
+    def generate_animation(self, output_folder, tf_anim=None, dpi=100, n_tail=200, lims=None, gif=False, fps=None):
         """
         - Funtion to generate the full animation of the simulation -
         """
@@ -279,7 +275,7 @@ class sim_thm2:
 
         # -- Plotting the summary --
         # Figure and grid init
-        fig = plt.figure()
+        fig = plt.figure(figsize=(6,6), dpi=dpi)
         grid = plt.GridSpec(1, 1, hspace=0.1, wspace=0.4)
 
         main_ax  = fig.add_subplot(grid[:, :], projection='3d')
@@ -295,7 +291,9 @@ class sim_thm2:
         main_ax.set_zlabel(r"$Z$", fontsize=11)
         main_ax.grid(True)
 
-        self.txt_title = main_ax.set_title("")
+        self.txt_title = main_ax.set_title("N = {0:} | t = {1:>5.2f} [T] \n".format(self.n_agents, 0, int(self.wx/np.pi)) +
+                                           "$w^k$ = $[${}$\pi,0,0]$ | $k_\omega$ = {:.1f} | ".format(int(self.wx/np.pi), self.sim.kw[0]) +
+                                           "$w^u$ = $[0,0,${}$\pi]".format(int(self.wd/np.pi)))   
 
         # Draw icons and body frame quivers
         self.icons = main_ax.scatter(self.data["p"][0,:,0], self.data["p"][0,:,1], self.data["p"][0,:,2], 
@@ -322,9 +320,9 @@ class sim_thm2:
         # Generate and save the animation
         if gif:
             writer = PillowWriter(fps=15, bitrate=1800)
-            anim.save(os.path.join(output_folder, "anim__{0}_{1}_{2}__{3}_{4}_{5}.gif".format(*time.localtime()[0:6])),
+            anim.save(os.path.join(output_folder, "anim_thm2.gif"),
                     writer = writer)
         else:
             writer = FFMpegWriter(fps=fps, metadata=dict(artist='Jesús Bautista Villar'), bitrate=10000)
-            anim.save(os.path.join(output_folder, "anim__{0}_{1}_{2}__{3}_{4}_{5}.mp4".format(*time.localtime()[0:6])), 
+            anim.save(os.path.join(output_folder, "anim_thm2.mp4"), 
                     writer = writer)

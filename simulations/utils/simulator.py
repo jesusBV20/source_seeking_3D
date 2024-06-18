@@ -20,7 +20,7 @@ class simulator:
             self.kw = np.array(kw)
         else:
             self.kw = np.array([kw for n in range(self.N)])
-        print(self.kw)
+
         self.set_R_desired(self.R)
         self.set_R_desired_dot(np.zeros((3,3)))
 

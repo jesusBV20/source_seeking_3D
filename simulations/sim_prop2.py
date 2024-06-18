@@ -11,14 +11,14 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 # -- Animation tools --
-from matplotlib.animation import FuncAnimation, FFMpegWriter
+from matplotlib.animation import FuncAnimation, FFMpegWriter, PillowWriter
 
 # -- Numerical tools --
 from simulations.utils.tools_math import *
 from simulations.utils.simulator import simulator
 
 class sim_prop2:
-    def __init__(self, wx, wd, mu_re_star, L1,
+    def __init__(self, wx, wd, mu_re_star, L1, v = 0.5,
                  tf = 20, dt = 1/60, fb_control = True, 
                  arr_len = 0.3):
         
@@ -35,25 +35,20 @@ class sim_prop2:
         self.mu_re_star = mu_re_star
 
         # Initial spacial position of the agents
-        p0 = np.array([[-2, 2.5, 2],[-2, 0, -2]])
-        v0 = 0.5
+        self.p0 = np.array([[-2, 2.5, 2],[-1, 2, -2]])
+        self.v0 = v
 
         # Generation the initial orientation of the body frames
         alfa_0  = 2*(np.random.rand((self.n_agents)) - 0.49) * np.pi # YAW
         beta_0  = 2*(np.random.rand((self.n_agents)) - 0.49) * np.pi # PITCH
         gamma_0 = 2*(np.random.rand((self.n_agents)) - 0.49) * np.pi # ROLL
 
-        R = np.repeat(np.eye(3)[None,:,:], self.n_agents, axis=0)
+        self.R = np.repeat(np.eye(3)[None,:,:], self.n_agents, axis=0)
         for n in range(self.n_agents):
-            R[n,:,:] = rot_3d_matrix(alfa_0[n], beta_0[n], gamma_0[n])
-
-        # -------------------------------------------------
-        # Generate the simulation engine
-        self.sim = simulator(p0=p0, R0=R, v0=v0, dt=self.dt, kw=[np.sqrt(2)*wd/mu_re_star[0], np.sqrt(2)*wd/mu_re_star[1]])
+            self.R[n,:,:] = rot_3d_matrix(alfa_0[n], beta_0[n], gamma_0[n])
 
         # Set the initial derired common orientation
         self.L1 = L1
-        self.sim.set_R_desired(get_R_from_v(self.L1[0]))
 
         # -------------------------------------------------
         # Plotting configurable parameters
@@ -67,6 +62,11 @@ class sim_prop2:
         - Function to launch the numerical simulation -
         """
         its = int(self.tf/self.dt) + 1
+
+        # Generate the simulation engine
+        self.sim = simulator(p0=self.p0, R0=self.R, v0=self.v0, dt=self.dt, 
+                             kw=np.sqrt(2)*self.wd/self.mu_re_star)
+        self.sim.set_R_desired(get_R_from_v(self.L1[0]))
 
         # Initialise the data dictionary with empty arrays
         for data_key in self.data:
@@ -125,7 +125,8 @@ class sim_prop2:
             # - Simulator euler step integration
             self.sim.int_euler()
 
-    def plot_article_figure(self, lims=None):
+
+    def plot_article_figure(self, output_folder=None, t0=0, lims=None):
         """
         - Function to generate the article figure -
         """
@@ -136,17 +137,25 @@ class sim_prop2:
         R_data = self.data["R"]
         error_data = self.data["theta_e"]
 
+        pij = p_data[:,1,:] - p_data[:,0,:]
+        pij_pij0 = pij[:,:] - pij[int(t0/self.dt),:]
+        dist_orig = np.sqrt(np.sum(pij_pij0*pij_pij0, axis=1))
+        dist_orig[0:int(t0/self.dt)] = None
+
+        dist_bound = 2*np.sqrt(3)*self.mu_re_star/self.sim.kw[0]
+
         # -- Plotting the summary --
         # Figure and grid init
         fig = plt.figure(figsize=(12,4), dpi=300)
-        grid = plt.GridSpec(1, 3, hspace=0, wspace=0)
+        grid = plt.GridSpec(2, 3, hspace=0.1, wspace=0)
 
-        error_ax = fig.add_subplot(grid[:, 0:2])
+        error_ax = fig.add_subplot(grid[0, 0:2], xticklabels=[])
+        dist_ax = fig.add_subplot(grid[1, 0:2])
         main_ax = fig.add_subplot(grid[:, 2], projection='3d')
 
         # Format of the axis
         if lims is None:
-            lims = [-2,2]
+            lims = [-3.5,3.5]
         main_ax.set_xlim(lims)
         main_ax.set_ylim(lims)
         main_ax.set_zlim(lims)
@@ -157,31 +166,35 @@ class sim_prop2:
         main_ax.grid(True)
 
         error_ax.set_ylabel(r"$\mu_{R_e}$")
-        error_ax.set_xlabel(r"$t$ [T]")
         error_ax.grid(True)
 
+        dist_ax.set_ylabel(r"$\|p_{ij}(t) - p_{ij}(t_0)\|$")
+        dist_ax.set_xlabel(r"$t$ [T]")
+        dist_ax.grid(True)
+
         error_ax.set_ylim([-0.2,np.pi+0.2])
+
+        dy = np.max(dist_bound)*0.1
+        y_max = np.max(np.array([np.max(dist_bound), np.max(dist_orig[int(t0/self.dt):])])) + dy*4.5
+        dist_ax.set_ylim([-dy, y_max])
         
         # -> 3D main plot
         ti, tf = 0, self.tf
-        li, lf = int(0/self.dt), int(self.tf/self.dt)
+        li, l0, lf = int(0/self.dt), int(t0/self.dt), int(self.tf/self.dt)
+        l_list = [li,lf]
 
         for n in range(self.n_agents):
             # Icons
-            main_ax.scatter(self.data["p"][li,:,0], self.data["p"][li,:,1], self.data["p"][li,:,2], 
-                            marker="o", color="k")
-            main_ax.scatter(self.data["p"][lf,:,0], self.data["p"][lf,:,1], self.data["p"][lf,:,2], 
-                            marker="o", color="k")
+            for l in l_list:
+                main_ax.scatter(self.data["p"][l,n,0], self.data["p"][l,n,1], self.data["p"][l,n,2], 
+                                marker="o", color="k")
 
             # Body frame axes
-            for i in range(3):
-                main_ax.quiver(p_data[li,n,0], p_data[li,n,1], p_data[li,n,2],
-                            R_data[li,n,i,0], R_data[li,n,i,1], R_data[li,n,i,2],
-                            color=self.ax_cols[i], length=self.arr_len, normalize=True, alpha=1)
-                
-                main_ax.quiver(p_data[lf,n,0], p_data[lf,n,1], p_data[lf,n,2],
-                            R_data[lf,n,i,0], R_data[lf,n,i,1], R_data[lf,n,i,2],
-                            color=self.ax_cols[i], length=self.arr_len, normalize=True, alpha=1)
+            for l in l_list:
+                for i in range(3):
+                    main_ax.quiver(p_data[l,n,0], p_data[l,n,1], p_data[l,n,2],
+                                R_data[l,n,i,0], R_data[l,n,i,1], R_data[l,n,i,2],
+                                color=self.ax_cols[i], length=self.arr_len, normalize=True, alpha=1)
                     
             # Tail
             main_ax.plot(p_data[:,n,0], p_data[:,n,1], p_data[:,n,2], "k", lw=1.5, alpha=0.5)
@@ -189,21 +202,48 @@ class sim_prop2:
         # Text labels
         n = 0
         main_ax.text(p_data[li,n,0]-1, p_data[li,n,1], p_data[li,n,2]+0.5, r"$t$ = {0:.0f}".format(ti))
+        main_ax.text(p_data[lf,n,0]-4, p_data[lf,n,1], p_data[lf,n,2]-3, r"$t$ = {0:.0f}".format(tf))
 
         # -> Error plot
-        error_ax.grid(True)
         error_ax.axvline(0, c="k", ls="-", lw=1)
         error_ax.axhline(0, c="k", ls="-", lw=1)
 
-        #error_ax.text(self.tf-2.7, self.mu_re_star+0.2, r"$\mu_{R_e}^*$", color="r")
-        #error_ax.text(self.tf-1.6, self.mu_re_star+0.2, r"= {0:.1f}".format(self.mu_re_star), color="r")
+        error_ax.axvline(t0, c="gray", ls="--", lw=1)
+        error_ax.text(t0*1.2, np.pi*0.8, r"$t_0$ = {:.1f}".format(t0), color="gray")
 
         time_vec = np.linspace(self.dt, self.tf, int(self.tf/self.dt))
         for n in range(R_data.shape[1]):
+            # Time evolution of the attitude error
             error_ax.plot(time_vec, error_data[1:,n], "b", lw=1)
 
-        #error_ax.axhline(self.mu_re_star, c="r", ls="--", lw=1, alpha=1)
+            # Desired attitude error dashed line
+            # rei = "R_e^{{{index}}}".format(index=n+1)
+            # error_ax.text(self.tf*0.88, self.mu_re_star[n]+0.15, r"$\mu_{{{rei}}}^*$".format(rei=rei), color="r", fontsize=12)
+            # error_ax.axhline(self.mu_re_star[n], c="r", ls="--", lw=1, alpha=1)
 
+        rei = "R_e".format(index=n+1)
+        error_ax.text(self.tf*0.88, self.mu_re_star+0.25, r"$\mu_{{{rei}}}^*$ = {}".format(self.mu_re_star,rei=rei), color="r", fontsize=12)
+        error_ax.axhline(self.mu_re_star, c="r", ls="--", lw=1, alpha=1)
+
+        # -> Dist plot
+        dist_ax.axvline(0, c="k", ls="-", lw=1)
+        dist_ax.axhline(0, c="k", ls="-", lw=1)
+        dist_ax.axvline(t0, c="gray", ls="--", lw=1)
+
+        time_vec = np.linspace(self.dt, self.tf, int(self.tf/self.dt))
+        for n in range(R_data.shape[1]):
+            # Time evolution of the distance between pij(t) and pij(0)
+            dist_ax.plot(time_vec, dist_orig[1:], "b", lw=1)
+
+            # Distance between pij(t) and pij(0) upper bound dashed line
+            lab = r"$\frac{2\sqrt{3} \mu_{R_e}^*}{k_\omega}$"
+            dist_ax.text(self.tf*0.845, dist_bound*1.15, r"{} = {:0.2f}".format(lab, dist_bound), color="r", fontsize=12)
+            dist_ax.axhline(dist_bound, c="r", ls="--", lw=1, alpha=1)
+
+        # Save and show the plot ----------------
+        if output_folder is not None:
+            fig.savefig(os.path.join(output_folder, "anim_prop2.png"))
+            
         plt.show()
 
 
@@ -227,19 +267,23 @@ class sim_prop2:
                 uvw = self.data["p"][i,n,:] + self.data["R"][i,n,k,:]*self.arr_len
                 new_segs = [[self.data["p"][i,n,:].tolist(), uvw.tolist()]]
                 self.ax_arrows[n,k].set_segments(new_segs)
-        
-        # return self.ax_arrows
+
+        self.txt_title.set_text("N = {0:} | t = {1:>5.2f} [T] \n".format(self.n_agents, i*self.dt, int(self.wx/np.pi)) +
+                                           "$w^k$ = $[${}$\pi,0,0]$ | ".format(int(self.wx/np.pi)) +
+                                           "$k_\omega^1$ = {:.1f} | $k_\omega^2$ = {:.1f} \n".format(self.sim.kw[0], self.sim.kw[1]) +
+                                           "$w^u$ = $[0,0,${}$\pi]".format(int(self.wd/np.pi)))  
 
 
-
-    def generate_animation(self, output_folder, tf_anim=None, res=1920, n_tail=200):
+    def generate_animation(self, output_folder, tf_anim=None, dpi=100, n_tail=200, lims=None, gif=False, fps=None):
         """
         - Funtion to generate the full animation of the simulation -
         """
         if tf_anim is None:
             tf_anim = self.tf
 
-        fps = 1/self.dt
+        if fps is None:
+            fps = 1/self.dt
+
         frames = int(tf_anim/self.dt-1)
         self.n_tail = n_tail
 
@@ -247,19 +291,26 @@ class sim_prop2:
 
         # -- Plotting the summary --
         # Figure and grid init
-        fig = plt.figure()
+        fig = plt.figure(figsize=(6,6), dpi=dpi)
         grid = plt.GridSpec(1, 1, hspace=0.1, wspace=0.4)
 
         main_ax  = fig.add_subplot(grid[:, :], projection='3d')
 
         # Format of the axis
-        main_ax.set_xlim([-7,7])
-        main_ax.set_ylim([-7,7])
-        main_ax.set_zlim([-7,7])
-        main_ax.set_xlabel(r"$X$ (L)")
-        main_ax.set_ylabel(r"$Y$ (L)")  
-        main_ax.set_zlabel(r"$Z$ (L)")
+        if lims is None:
+            lims = [-2,2]
+        main_ax.set_xlim(lims)
+        main_ax.set_ylim(lims)
+        main_ax.set_zlim(lims)
+        main_ax.set_xlabel(r"$X$", fontsize=11)
+        main_ax.set_ylabel(r"$Y$", fontsize=11)  
+        main_ax.set_zlabel(r"$Z$", fontsize=11)
         main_ax.grid(True)
+
+        self.txt_title = main_ax.set_title("N = {0:} | t = {1:>5.2f} [T] \n".format(self.n_agents, 0, int(self.wx/np.pi)) +
+                                           "$w^k$ = $[${}$\pi,0,0]$ | ".format(int(self.wx/np.pi)) +
+                                           "$k_\omega^1$ = {:.1f} | $k_\omega^2$ = {:.1f} \n".format(self.sim.kw[0], self.sim.kw[1]) +
+                                           "$w^u$ = $[0,0,${}$\pi]".format(int(self.wd/np.pi)))   
 
         # Draw icons and body frame quivers
         self.icons = main_ax.scatter(self.data["p"][0,:,0], self.data["p"][0,:,1], self.data["p"][0,:,2], 
@@ -284,6 +335,11 @@ class sim_prop2:
         anim = FuncAnimation(fig, self.animate, frames=tqdm(range(frames), initial=1, position=0), interval=1/fps*1000/4)
 
         # Generate and save the animation
-        writer = FFMpegWriter(fps=fps, metadata=dict(artist='Jesús Bautista Villar'), bitrate=10000)
-        anim.save(os.path.join(output_folder, "anim__{0}_{1}_{2}__{3}_{4}_{5}.mp4".format(*time.localtime()[0:6])), 
-                writer = writer)
+        if gif:
+            writer = PillowWriter(fps=15, bitrate=1800)
+            anim.save(os.path.join(output_folder, "anim_prop2.gif"),
+                    writer = writer)
+        else:
+            writer = FFMpegWriter(fps=fps, metadata=dict(artist='Jesús Bautista Villar'), bitrate=10000)
+            anim.save(os.path.join(output_folder, "anim_prop2.mp4"), 
+                    writer = writer)
