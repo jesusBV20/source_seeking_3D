@@ -153,7 +153,7 @@ class sim_thm2:
 
         # Format of the axis
         if lims is None:
-            lims = [-2,2]
+            lims = [-3.5,3.5]
         main_ax.set_xlim(lims)
         main_ax.set_ylim(lims)
         main_ax.set_zlim(lims)
@@ -282,7 +282,7 @@ class sim_thm2:
 
         # Format of the axis
         if lims is None:
-            lims = [-2,2]
+            lims = [-3.5,3.5]
         main_ax.set_xlim(lims)
         main_ax.set_ylim(lims)
         main_ax.set_zlim(lims)
