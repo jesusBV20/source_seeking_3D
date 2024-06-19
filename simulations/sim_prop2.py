@@ -65,7 +65,7 @@ class sim_prop2:
 
         # Generate the simulation engine
         self.sim = simulator(p0=self.p0, R0=np.copy(self.R0), v0=self.v0, dt=self.dt, 
-                             kw=np.sqrt(2)*self.wd/self.mu_re_star)
+                             kw=np.sqrt(2)*abs(self.wd)/self.mu_re_star)
         
         self.L1 = np.copy(self.L1_1)
         Ra_0 = get_R_from_v(self.L1)
@@ -75,15 +75,13 @@ class sim_prop2:
         for data_key in self.data:
             self.data[data_key] = np.empty((its, *self.sim.data[data_key].shape))
 
-        # L1 rotation matrix to be applied during the whole simulation
-        Rl = rot_3d_matrix(0,self.dt*np.pi/10,0)
+        # Generate the "unknown" omega_hat (earth-fixed)
+        omega_hat_u = Ra_0 @ so3_hat([0,0,self.wd]) @ Ra_0.T
+        omega_hat_ui = np.zeros_like(omega_hat_u)
 
-        # As Y and Z are not fixed, we will apply an \omega_x rotation to the
-        # reference desired rotation matrix
-
-        omega_hat_x = np.array([[0,0,0],[0,0,-self.wx],[0,self.wx,0]])
-        omega_hat_z = so3_hat([0,0,self.wd])
-        omega_hat = omega_hat_x * 0
+        # Generate the "known" omega_hat (body-fixed)
+        omega_hat_k = np.array([[0,0,0],[0,0,-self.wx],[0,self.wx,0]])
+        omega_hat_ki = np.zeros_like(omega_hat_k)
 
         # Numerical simulation loop
         for i in tqdm(range(its)):
@@ -92,40 +90,50 @@ class sim_prop2:
                 self.data[data_key][i] = self.sim.data[data_key]
 
             # - Set a new derired common orientation Ra
-                
-            # Copy the initial Ra
             Ra = np.copy(Ra_0)
 
             # Compute the new rotation matrix
-            omega_hat = omega_hat + self.dt*omega_hat_x
-            omega_hat = omega_hat + self.dt*omega_hat_z
+            omega_hat_ki = omega_hat_ki + self.dt*omega_hat_k
+            omega_hat_ui = omega_hat_ui + self.dt*omega_hat_u
             
-            theta = np.linalg.norm(so3_vee(omega_hat))
+            theta_k = np.linalg.norm(so3_vee(omega_hat_ki))
+            theta_u = np.linalg.norm(so3_vee(omega_hat_ui))
             
-            # Ensure that \omega \in [0,2\pi)
-            if theta > 2*np.pi:
-                omega_hat = theta % (2*np.pi) * (omega_hat / theta)
-            
-            print(theta, omega_hat, "\n--")
+            # Ensure that theta is in [0,2\pi)
+            if abs(theta_k) > 2*np.pi:
+                omega_hat_ki = abs(theta_k) % (2*np.pi) * (omega_hat_ki / abs(theta_k))
+            if abs(theta_u) > 2*np.pi:
+                omega_hat_ui = abs(theta_u) % (2*np.pi) * (omega_hat_ui / abs(theta_u))
 
             # Since our computation of Exp(Ω) is an approximation, next we restrict 
             # the maximum rotation to a fixed step (π/6). E.g., it means that if we need 
             # to perform a π-radian rotation, we will execute six rotations of π/6 each.
-            step = np.pi/6
-            if theta >= step:
-                for k in range(int(theta // (step))):
-                    Ra = (Ra.T @ exp_map((step) * (omega_hat / theta) )).T
-                
-                Ra = (Ra.T @ exp_map(theta % (step) * (omega_hat / theta) )).T
-            else:
-                Ra = (Ra.T @ exp_map(omega_hat)).T
+            step = np.pi/10
 
-            # Once the rotation is applied, now we set the desired Ra
+            # We integrate first the earth-fixed rotation
+            if abs(theta_u) >= step:
+                for k in range(int(abs(theta_u) // (step))):
+                    Ra = (Ra.T @ exp_map((step) * (omega_hat_ui / abs(theta_u)) )).T
+                
+                Ra = (Ra.T @  exp_map(abs(theta_u) % (step) * (omega_hat_ui / abs(theta_u)) )).T
+            else:
+                Ra = (Ra.T @ exp_map(omega_hat_ui)).T
+
+            # and then the body-fixed rotation
+            if abs(theta_k) >= step:
+                for k in range(int(abs(theta_k) // (step))):
+                    Ra = (Ra.T @ exp_map((step) * (omega_hat_ki / abs(theta_k)) )).T
+                
+                Ra = (Ra.T @  exp_map(abs(theta_k) % (step) * (omega_hat_ki / abs(theta_k)) )).T
+            else:
+                Ra = (Ra.T @ exp_map(omega_hat_ki)).T
+
+            # Once the rotation is applied, we pass the desired Ra to the simulator
             self.sim.set_R_desired(np.copy(Ra))
 
-            # Inform to the controller how Rd will change next
+            # and the known time variation of Ra to the feedforward controller
             if self.fb_control:
-                self.sim.set_R_desired_dot((Ra.T @ (omega_hat_x)).T)
+                self.sim.set_R_desired_dot((Ra.T @ (omega_hat_k)).T)
 
 
             # - Simulator euler step integration
@@ -276,8 +284,8 @@ class sim_prop2:
 
         self.txt_title.set_text("N = {0:} | t = {1:>5.2f} [T] \n".format(self.n_agents, i*self.dt, int(self.wx/np.pi)) +
                                            "$w^k$ = $[${}$\pi,0,0]$ | ".format(int(self.wx/np.pi)) +
-                                           "$k_\omega^1$ = {:.1f} | $k_\omega^2$ = {:.1f} \n".format(self.sim.kw[0], self.sim.kw[1]) +
-                                           "$w^u$ = $[0,0,\pi/${}$]$".format(int(np.pi/self.wd)))  
+                                           "$k_\omega$ = {:.1f} | ".format(self.sim.kw[0]) +
+                                           "$w^u$ = $[0,0,-\pi/${}$]$".format(int(np.pi/abs(self.wd))))
 
 
     def generate_animation(self, output_folder, tf_anim=None, dpi=100, n_tail=200, lims=None, gif=False, fps=None):
@@ -315,8 +323,8 @@ class sim_prop2:
 
         self.txt_title = main_ax.set_title("N = {0:} | t = {1:>5.2f} [T] \n".format(self.n_agents, 0, int(self.wx/np.pi)) +
                                            "$w^k$ = $[${}$\pi,0,0]$ | ".format(int(self.wx/np.pi)) +
-                                           "$k_\omega^1$ = {:.1f} | $k_\omega^2$ = {:.1f} \n".format(self.sim.kw[0], self.sim.kw[1]) +
-                                           "$w^u$ = $[0,0,\pi/${}$]$".format(int(np.pi/self.wd))) 
+                                           "$k_\omega$ = {:.1f} | ".format(self.sim.kw[0]) +
+                                           "$w^u$ = $[0,0,-\pi/${}$]$".format(int(np.pi/abs(self.wd)))) 
 
         # Draw icons and body frame quivers
         self.icons = main_ax.scatter(self.data["p"][0,:,0], self.data["p"][0,:,1], self.data["p"][0,:,2], 

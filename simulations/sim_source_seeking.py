@@ -11,7 +11,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 # -- Animation tools --
-from matplotlib.animation import FuncAnimation, FFMpegWriter
+from matplotlib.animation import FuncAnimation, FFMpegWriter, PillowWriter
 
 # -- Numerical tools --
 from simulations.utils.tools_math import *
@@ -39,30 +39,22 @@ class sim_ss_test:
         # Simulation frame parameters
         self.wx = wx
         self.fb_control = fb_control
+        self.sim_kw = sim_kw
 
         # Initial spacial position of the agents
         pc = np.array([-55,-55,-55])
-        p0 = 2*(np.random.random((n_agents,3)) - 0.49) * 15 + pc
-        v0 = 10
+        self.p0 = 2*(np.random.random((n_agents,3)) - 0.49) * 15 + pc
+        self.v0 = 15
 
         # Generation the initial orientation of the body frames
         alfa_0  = 2*(np.random.rand((n_agents)) - 0.49) * np.pi # YAW
         beta_0  = 2*(np.random.rand((n_agents)) - 0.49) * np.pi # PITCH
         gamma_0 = 2*(np.random.rand((n_agents)) - 0.49) * np.pi # ROLL
 
-        R = np.repeat(np.eye(3)[None,:,:], n_agents, axis=0)
+        self.R0 = np.repeat(np.eye(3)[None,:,:], n_agents, axis=0)
         for n in range(n_agents):
-            R[n,:,:] = rot_3d_matrix(alfa_0[n], beta_0[n], gamma_0[n])
-
-        # -------------------------------------------------
-        # Generate the simulation engine
-        self.sim = simulator(p0=p0, R0=R, v0=v0, dt=self.dt, **sim_kw)
-        self.ss_module = module_ss(self.sim, self.sigma)
-
-        # Set the initial derired common orientation
-        self.Lsgima = self.ss_module.l_sigma_hat_norm
-        self.sim.set_R_desired(get_R_from_v(self.Lsgima))
-
+            self.R0[n,:,:] = rot_3d_matrix(alfa_0[n], beta_0[n], gamma_0[n])
+            
         # -------------------------------------------------
         # Plotting configurable parameters
         self.title = ""
@@ -78,6 +70,14 @@ class sim_ss_test:
     """
     def numerical_simulation(self):
         its = int(self.tf/self.dt) + 1
+
+        # Generate the simulation engine
+        self.sim = simulator(p0=self.p0, R0=self.R0, v0=self.v0, dt=self.dt, **self.sim_kw)
+        self.ss_module = module_ss(self.sim, self.sigma)
+
+        # Set the initial derired common orientation
+        self.Lsgima = self.ss_module.l_sigma_hat_norm
+        self.sim.set_R_desired(get_R_from_v(self.Lsgima))
 
         # Initialise the data dictionary with empty arrays
         for data_key in self.data:
@@ -141,11 +141,9 @@ class sim_ss_test:
     """\
     - Function to generate the summary graphical plot of the whole simulation -
     """
-    def plot_summary(self, t_list=None, dpi=100):
-        if t_list is None:
-            t_list = [0, self.tf]
+    def plot_article_figure(self, output_folder=None, dpi=100):
 
-        ti, tf = t_list[0], t_list[-1]
+        ti, tf = 0, self.tf
         li, lf = int(ti/self.dt), int(tf/self.dt)
 
         # -- Extract data fields from data dictonary --
@@ -153,34 +151,44 @@ class sim_ss_test:
         R_data = self.data["R"]
         error_data = self.data["theta_e"]
         pc_data = self.data["pc"]
-        lsigma_data = self.data["Lsigma"]
-        grad_data = self.data["grad_pc"]
+        # lsigma_data = self.data["Lsigma"]
+        # grad_data = self.data["grad_pc"]
+
+        dist_data = np.linalg.norm(p_data[:,:,:] - np.array(self.ss_module.p_star), axis=2)
         
         # -- Plotting the summary --
         # Figure and grid init
-        fig = plt.figure(figsize=(16,9))
-        grid = plt.GridSpec(3, 5, hspace=0, wspace=0.6)
+        fig = plt.figure(figsize=(12,4), dpi=dpi)
+        grid = plt.GridSpec(2, 2, hspace=0.1, wspace=0)
 
-        main_ax = fig.add_subplot(grid[:, 0:3], projection='3d', computed_zorder=False)
-        error_ax = fig.add_subplot(grid[2, 3:5])
+        error_ax = fig.add_subplot(grid[0, 0], xticklabels=[])
+        dist_ax = fig.add_subplot(grid[1, 0])
+        main_ax = fig.add_subplot(grid[:, 1], projection='3d', computed_zorder=False)
 
         # Format of the axis
         main_ax.set_title(self.title, fontsize=14)
+        main_ax.view_init(azim=-120)
         main_ax.grid(True)
 
-        error_ax.set_ylabel(r"$|\theta|$")
-        error_ax.set_xlabel(r"t [T]")
+        error_ax.set_ylabel(r"$\mu_{R_e}$")
         error_ax.grid(True)
+
+        dist_ax.set_ylabel(r"$\|p_i(t) - p^*\|$")
+        dist_ax.set_xlabel(r"t [T]")
+        dist_ax.grid(True)
         
         # - 3D main plot -
         # Draw the scalar field
-        self.sigma.draw_3D(fig=fig, ax=main_ax, lim=self.lim, contour_levels=40)
+        self.sigma.draw_3D(fig=fig, ax=main_ax, lim=self.lim, contour_levels=30, offsets=[1,1,-1])
+
+        # Text
+        n=0
+        main_ax.text(-50-25, -50+30, -40, r"$t$ = {0:.0f}".format(ti), fontsize=10)
+        main_ax.text(50-25, 50+30, 40-40, r"$t$ = {0:.0f}".format(tf), fontsize=10)
 
         # Icons
         main_ax.scatter(self.data["p"][li,:,0], self.data["p"][li,:,1], self.data["p"][li,:,2], 
                         marker="o", color="k", alpha=0.5, s=5)
-        # main_ax.scatter(self.data["p"][lf,:,0], self.data["p"][lf,:,1], self.data["p"][lf,:,2], 
-        #                 marker="o", color="k")
 
         # Body frame axes
         for n in range(R_data.shape[1]):
@@ -197,44 +205,57 @@ class sim_ss_test:
             main_ax.plot(p_data[:,n,0], p_data[:,n,1], p_data[:,n,2], "k", lw=0.5, alpha=0.5)
 
         # Centroid tail 2D projection
-        main_ax.plot(pc_data[:,1], pc_data[:,2], "--k", lw=1, zdir="x", zs=-self.lim)
+        main_ax.plot(pc_data[:,1], pc_data[:,2], "--k", lw=1, zdir="x", zs= self.lim)
         main_ax.plot(pc_data[:,0], pc_data[:,2], "--k", lw=1, zdir="y", zs= self.lim)
         main_ax.plot(pc_data[:,0], pc_data[:,1], "--k", lw=1, zdir="z", zs=-self.lim)
 
-        main_ax.plot([pc_data[0,0], -self.lim], [pc_data[0,1],pc_data[0,1]], [pc_data[0,2],pc_data[0,2]], "-k", lw=0.5, alpha=0.8)
+        main_ax.plot([pc_data[0,0], self.lim], [pc_data[0,1],pc_data[0,1]], [pc_data[0,2],pc_data[0,2]], "-k", lw=0.5, alpha=0.8)
         main_ax.plot([pc_data[0,0], pc_data[0,0]], [pc_data[0,1],self.lim], [pc_data[0,2],pc_data[0,2]], "-k", lw=0.5, alpha=0.8)
         main_ax.plot([pc_data[0,0], pc_data[0,0]], [pc_data[0,1],pc_data[0,1]], [pc_data[0,2],-self.lim], "-k", lw=0.5, alpha=0.8)
         
-        # 2D quiver projections of the grad of sigma in pc and Lsigma
-        main_ax.quiver(pc_data[lf,0], pc_data[lf,1], -self.lim    , 
-                       0              , lsigma_data[lf,1], lsigma_data[lf,2],
-                       color="darkred", length=self.arr_len*2, normalize=True, alpha=1, zorder=2)
-        main_ax.quiver(pc_data[lf,0], self.lim     , pc_data[lf,2], 
-                       lsigma_data[lf,0], 0                 , lsigma_data[lf,2],
-                       color="darkred", length=self.arr_len*2, normalize=True, alpha=1, zorder=2)
-        main_ax.quiver(-self.lim    , pc_data[lf,1], pc_data[lf,2], 
-                       0              , lsigma_data[lf,1], lsigma_data[lf,2],
-                       color="darkred", length=self.arr_len*2, normalize=True, alpha=1, zorder=2)
+        # # 2D quiver projections of the grad of sigma in pc and Lsigma
+        # main_ax.quiver(pc_data[lf,0], pc_data[lf,1], self.lim    , 
+        #                0              , lsigma_data[lf,1], lsigma_data[lf,2],
+        #                color="darkred", length=self.arr_len*2, normalize=True, alpha=1, zorder=2)
+        # main_ax.quiver(pc_data[lf,0], self.lim     , pc_data[lf,2], 
+        #                lsigma_data[lf,0], 0                 , lsigma_data[lf,2],
+        #                color="darkred", length=self.arr_len*2, normalize=True, alpha=1, zorder=2)
+        # main_ax.quiver(-self.lim    , pc_data[lf,1], pc_data[lf,2], 
+        #                0              , lsigma_data[lf,1], lsigma_data[lf,2],
+        #                color="darkred", length=self.arr_len*2, normalize=True, alpha=1, zorder=2)
         
-        main_ax.quiver(pc_data[lf,0], pc_data[lf,1], -self.lim    , 
-                       0            , grad_data[lf,1], grad_data[lf,2],
-                       color="k", length=self.arr_len*2, normalize=True, alpha=1, zorder=1)
-        main_ax.quiver(pc_data[lf,0], self.lim       , pc_data[lf,2], 
-                       grad_data[lf,0], 0            , grad_data[lf,2],
-                       color="k", length=self.arr_len*2, normalize=True, alpha=1, zorder=1)
-        main_ax.quiver(-self.lim    , pc_data[lf,1], pc_data[lf,2], 
-                       0            , grad_data[lf,1], grad_data[lf,2],
-                       color="k", length=self.arr_len*2, normalize=True, alpha=1, zorder=1)
-
+        # main_ax.quiver(pc_data[lf,0], pc_data[lf,1], self.lim    , 
+        #                0            , grad_data[lf,1], grad_data[lf,2],
+        #                color="k", length=self.arr_len*2, normalize=True, alpha=1, zorder=1)
+        # main_ax.quiver(pc_data[lf,0], self.lim       , pc_data[lf,2], 
+        #                grad_data[lf,0], 0            , grad_data[lf,2],
+        #                color="k", length=self.arr_len*2, normalize=True, alpha=1, zorder=1)
+        # main_ax.quiver(-self.lim    , pc_data[lf,1], pc_data[lf,2], 
+        #                0            , grad_data[lf,1], grad_data[lf,2],
+        #                color="k", length=self.arr_len*2, normalize=True, alpha=1, zorder=1)
 
         # - Error plot -
         error_ax.grid(True)
-        error_ax.axhline(0, c="k", ls="--", lw=1)
-        time_vec = np.linspace(0, self.tf, int(self.tf/self.dt) + 1)
+        error_ax.axvline(0, c="k", ls="-", lw=1)
+        error_ax.axhline(0, c="k", ls="-", lw=1)
+        time_vec = np.linspace(self.dt, self.tf, int(self.tf/self.dt))
 
         for n in range(R_data.shape[1]):
-            error_ax.plot(time_vec, error_data[:,n], "b", lw=1)
+            error_ax.plot(time_vec, error_data[1:,n], "b", lw=1, alpha=0.8)
+        
+        # - Distance plot -
+        dist_ax.grid(True)
+        dist_ax.axvline(0, c="k", ls="-", lw=1)
+        dist_ax.axhline(0, c="k", ls="-", lw=1)
+        time_vec = np.linspace(self.dt, self.tf, int(self.tf/self.dt))
 
+        for n in range(R_data.shape[1]):
+            dist_ax.plot(time_vec, dist_data[1:,n], "b", lw=1, alpha=0.8)
+
+        # Save and show the plot ----------------
+        if output_folder is not None:
+            fig.savefig(os.path.join(output_folder, "anim_ss.png"))
+            
         plt.show()
 
 
@@ -271,11 +292,13 @@ class sim_ss_test:
     """"\
     - Funtion to generate the full animation of the simulation -
     """
-    def generate_animation(self, output_folder, res_label="480p", tf_anim=None):
+    def generate_animation(self, output_folder, dpi=100, tf_anim=None, gif=False, fps=None):
         if tf_anim is None:
             tf_anim = self.tf
 
-        fps = 1/self.dt
+        if fps is None:
+            fps = 1/self.dt
+
         frames = int(tf_anim/self.dt-1)
 
         print("Animation parameters: ", {"fps":fps, "tf":tf_anim, "frames":frames})
@@ -290,8 +313,7 @@ class sim_ss_test:
 
         # -- Initial state of the animation --
         # Figure and grid init
-        res = resolution_dic[res_label]
-        fig = plt.figure(figsize=(16,9), dpi=res/16)
+        fig = plt.figure(figsize=(6,5), dpi=dpi)
         grid = plt.GridSpec(1, 1, hspace=0.1, wspace=0.4)
 
         main_ax  = fig.add_subplot(grid[:, :], projection='3d', computed_zorder=False)
@@ -301,7 +323,7 @@ class sim_ss_test:
         main_ax.grid(True)
 
         # Draw the scalar field
-        self.sigma.draw_3D(fig=fig, ax=main_ax, lim=self.lim, contour_levels=40)
+        self.sigma.draw_3D(fig=fig, ax=main_ax, lim=self.lim, contour_levels=30)
 
         # Draw icons and body frame quivers
         self.icons = main_ax.scatter(p_data[0,:,0], p_data[0,:,1], p_data[0,:,2], 
@@ -354,6 +376,11 @@ class sim_ss_test:
         anim = FuncAnimation(fig, self.animate, frames=tqdm(range(frames), initial=1, position=0), interval=1/fps*1000/4)
 
         # Generate and save the animation
-        writer = FFMpegWriter(fps=fps, metadata=dict(artist='Jesús Bautista Villar'), bitrate=10000)
-        anim.save(os.path.join(output_folder, "anim__ss_{0}_{1}_{2}__{3}_{4}_{5}.mp4".format(*time.localtime()[0:6])), 
-                writer = writer)
+        if gif:
+            writer = PillowWriter(fps=15, bitrate=1800)
+            anim.save(os.path.join(output_folder, "anim_ss.gif"),
+                    writer = writer)
+        else:
+            writer = FFMpegWriter(fps=fps, metadata=dict(artist='Jesús Bautista Villar'), bitrate=10000)
+            anim.save(os.path.join(output_folder, "anim_ss.mp4"), 
+                    writer = writer)

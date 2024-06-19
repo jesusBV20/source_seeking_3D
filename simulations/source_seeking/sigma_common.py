@@ -54,16 +54,16 @@ class sigma:
     """
     - Function to draw a 3D scalar field -
     """
-    def draw_3D(self, fig=None, ax=None, lim=30, cmap=MY_CMAP, n=30, contour_levels=0, contour_lw=0.3, cbar_sw=True):
+    def draw_3D(self, fig=None, ax=None, lim=30, cmap=MY_CMAP, n=30, contour_levels=30, contour_lw=0.15, offsets=[-1,1,-1]):
         if fig == None:
             fig = plt.figure(figsize=(16, 9), dpi=100)
             ax = fig.subplots(projection="3d")
         elif ax == None:
             ax = fig.subplots(projection="3d")
 
-        ax.set_xlabel(r"$X [L]$")
-        ax.set_ylabel(r"$Y [L]$")  
-        ax.set_zlabel(r"$Z [L]$")
+        ax.set_xlabel(r"$X$")
+        ax.set_ylabel(r"$Y$")  
+        ax.set_zlabel(r"$Z$")
 
         ax.set_proj_type('ortho')
         ax.set_xlim([-lim,lim])
@@ -90,29 +90,29 @@ class sigma:
         # Draw colormaps
         kw_cf = {"levels":contour_levels, "cmap":cmap, "alpha":0.5}
         kw_c  = {"levels":contour_levels, "colors":"k", "linewidths":contour_lw, 
-                 "linestyles":"-", "alpha":0.02}
+                 "linestyles":"-", "alpha":0.8}
         
-        ax.contourf(sigma_x, Yx[:,:,0], Zx[:,:,0], **kw_cf, zdir="x", offset=-lim)
-        ax.contour(sigma_x, Yx[:,:,0], Zx[:,:,0], **kw_c, zdir="x", offset=-lim)
+        ax.contourf(sigma_x, Yx[:,:,0], Zx[:,:,0], **kw_cf, zdir="x", offset=offsets[0]*lim)
+        ax.contour(sigma_x, Yx[:,:,0], Zx[:,:,0], **kw_c, zdir="x", offset=offsets[0]*lim)
         
-        ax.contourf(Xy[:,:,0], sigma_y, Zy[:,:,0], **kw_cf, zdir="y", offset=lim)
-        ax.contour(Xy[:,:,0], sigma_y, Zy[:,:,0], **kw_c, zdir="y", offset=lim)
+        ax.contourf(Xy[:,:,0], sigma_y, Zy[:,:,0], **kw_cf, zdir="y", offset=offsets[1]*lim)
+        ax.contour(Xy[:,:,0], sigma_y, Zy[:,:,0], **kw_c, zdir="y", offset=offsets[1]*lim)
         
-        ax.contourf(Xz[:,:,0], Yz[:,:,0], sigma_z, **kw_cf, zdir="z", offset=-lim)
-        ax.contour(Xz[:,:,0], Yz[:,:,0], sigma_z, **kw_c, zdir="z", offset=-lim)
+        ax.contourf(Xz[:,:,0], Yz[:,:,0], sigma_z, **kw_cf, zdir="z", offset=offsets[2]*lim)
+        ax.contour(Xz[:,:,0], Yz[:,:,0], sigma_z, **kw_c, zdir="z", offset=offsets[2]*lim)
         
         # Draw the center of the distribution
         x0 = self.sigma_func.x0
         ax.plot(x0[0], x0[1], x0[2], "xk")
         ax.plot(x0[0], x0[1], x0[2], "ok", alpha=0.2)
 
-        ax.plot(x0[0], x0[1], "xk", zdir="z", zs=-lim)
-        ax.plot(x0[0], x0[2], "xk", zdir="y", zs= lim)
-        ax.plot(x0[1], x0[2], "xk", zdir="x", zs=-lim)
+        ax.plot(x0[1], x0[2], "xk", zdir="x", zs= offsets[0]*lim)
+        ax.plot(x0[0], x0[2], "xk", zdir="y", zs= offsets[1]*lim)
+        ax.plot(x0[0], x0[1], "xk", zdir="z", zs= offsets[2]*lim)
 
-        ax.plot([x0[0], -lim], [x0[1],x0[1]], [x0[2],x0[2]], "-k", lw=0.5, alpha=0.5)
-        ax.plot([x0[0],x0[0]], [x0[1],lim], [x0[2],x0[2]], "-k", lw=0.5, alpha=0.5)
-        ax.plot([x0[0],x0[0]], [x0[1],x0[1]], [x0[2],-lim], "-k", lw=0.5, alpha=0.5)
+        ax.plot([x0[0], offsets[0]*lim], [x0[1],x0[1]], [x0[2],x0[2]], "-k", lw=0.5, alpha=0.5)
+        ax.plot([x0[0],x0[0]], [x0[1], offsets[1]*lim], [x0[2],x0[2]], "-k", lw=0.5, alpha=0.5)
+        ax.plot([x0[0],x0[0]], [x0[1],x0[1]], [x0[2], offsets[2]*lim], "-k", lw=0.5, alpha=0.5)
 
     """\
     - Function to draw the gradient at a point -

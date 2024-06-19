@@ -9,6 +9,7 @@ class module_ss:
     def __init__(self, simulation_engine, sigma_field):
         self.sim_eng = simulation_engine
         self.sigma_field = sigma_field
+        self.p_star = self.sigma_field.mu
 
         n = self.sim_eng.p.shape[1]
         self.l_sigma_hat = np.zeros(n)

@@ -49,7 +49,7 @@ class sim_thm2:
             self.R[n,:,:] = rot_3d_matrix(alfa_0[n], beta_0[n], gamma_0[n])
 
         # Set the initial derired common orientation
-        self.L1_0 = L1
+        self.L1_1 = L1
 
         # -------------------------------------------------
         # Plotting configurable parameters
@@ -65,23 +65,25 @@ class sim_thm2:
         its = int(self.tf/self.dt) + 1
 
         # Generate the simulation engine
-        self.sim = simulator(p0=self.p0, R0=self.R, v0=self.v0, dt=self.dt, kw=np.sqrt(2)*self.wd/self.mu_re_star)
+        self.sim = simulator(p0=self.p0, R0=self.R, v0=self.v0, dt=self.dt, 
+                             kw=np.sqrt(2)*abs(self.wd)/self.mu_re_star)
 
         # Set the initial derired common orientation
-        self.L1 = self.L1_0
-        self.sim.set_R_desired(get_R_from_v(self.L1[0]))
+        self.L1 = np.copy(self.L1_1)
+        Ra_0 = get_R_from_v(self.L1)
+        self.sim.set_R_desired(Ra_0)
 
         # Initialise the data dictionary with empty arrays
         for data_key in self.data:
             self.data[data_key] = np.empty((its, *self.sim.data[data_key].shape))
 
-        # L1 rotation matrix to be applied during the whole simulation
-        Rl = rot_3d_matrix(0,self.dt*np.pi/10,0)
+        # Generate the "unknown" omega_hat (earth-fixed)
+        omega_hat_u = Ra_0 @ so3_hat([0,0,self.wd]) @ Ra_0.T
+        omega_hat_ui = np.zeros_like(omega_hat_u)
 
-        # As Y and Z are not fixed, we will apply an \omega_x rotation to the
-        # reference desired rotation matrix
-        omega_hat_x = np.array([[0,0,0],[0,0,-self.wx],[0,self.wx,0]])
-        omega_hat_xi = omega_hat_x * 0
+        # Generate the "known" omega_hat (body-fixed)
+        omega_hat_k = np.array([[0,0,0],[0,0,-self.wx],[0,self.wx,0]])
+        omega_hat_ki = np.zeros_like(omega_hat_k)
 
         # Numerical simulation loop
         for i in tqdm(range(its)):
@@ -90,40 +92,50 @@ class sim_thm2:
                 self.data[data_key][i] = self.sim.data[data_key]
 
             # - Set a new derired common orientation Ra
-            
-            # Change the vector that we want to aling with X
-            Rl = exp_map(so3_hat([0,0,self.dt*self.wd]))
-            self.L1 = self.L1 @ Rl 
+            Ra = np.copy(Ra_0)
 
-            # Generate the ny and nz (ortogonal vector to L1)
-            R = get_R_from_v(self.L1[0])
+            # Compute the new rotation matrix
+            omega_hat_ki = omega_hat_ki + self.dt*omega_hat_k
+            omega_hat_ui = omega_hat_ui + self.dt*omega_hat_u
+            
+            theta_k = np.linalg.norm(so3_vee(omega_hat_ki))
+            theta_u = np.linalg.norm(so3_vee(omega_hat_ui))
+            
+            # Ensure that theta is in [0,2\pi)
+            if theta_k > 2*np.pi:
+                omega_hat_ki = theta_k % (2*np.pi) * (omega_hat_ki / theta_k)
+            if theta_u > 2*np.pi:
+                omega_hat_ui = theta_u % (2*np.pi) * (omega_hat_ui / theta_u)
 
-            # Rotate the resultant action R with w = w_x
-            omega_hat_xi = omega_hat_xi + self.dt*omega_hat_x
-            
-            # Ensure that \omega \in [0,2\pi)
-            if omega_hat_xi[2,1] > 2*np.pi:
-                omega_hat_xi = omega_hat_xi[2,1] % (2*np.pi) * omega_hat_x / self.wx
-            
             # Since our computation of Exp(Ω) is an approximation, next we restrict 
             # the maximum rotation to a fixed step (π/6). E.g., it means that if we need 
             # to perform a π-radian rotation, we will execute six rotations of π/6 each.
-            step = np.pi/6
-            if omega_hat_xi[2,1] >= step:
-                for k in range(int(omega_hat_xi[2,1] // (step))):
-                    R = (R.T @ exp_map((step) * omega_hat_x / self.wx)).T
+            step = np.pi/10
+
+            # We integrate first the earth-fixed rotation
+            if theta_u >= step:
+                for k in range(int(theta_u // (step))):
+                    Ra = (Ra.T @ exp_map((step) * (omega_hat_ui / theta_u) )).T
                 
-                R = (R.T @ exp_map(omega_hat_xi[2,1] % (step) * omega_hat_x / self.wx)).T
+                Ra = (Ra.T @  exp_map(theta_u % (step) * (omega_hat_ui / theta_u) )).T
             else:
-                R = (R.T @ exp_map(omega_hat_xi)).T
+                Ra = (Ra.T @ exp_map(omega_hat_ui)).T
 
-            # Once the rotation is applied, now we set the desired Ra
-            self.sim.set_R_desired(R)
+            # and then the body-fixed rotation
+            if theta_k >= step:
+                for k in range(int(theta_k // (step))):
+                    Ra = (Ra.T @ exp_map((step) * (omega_hat_ki / theta_k) )).T
+                
+                Ra = (Ra.T @  exp_map(theta_k % (step) * (omega_hat_ki / theta_k) )).T
+            else:
+                Ra = (Ra.T @ exp_map(omega_hat_ki)).T
 
-            # Inform to the controller how Rd will change next
+            # Once the rotation is applied, we pass the desired Ra to the simulator
+            self.sim.set_R_desired(np.copy(Ra))
+
+            # and the known time variation of Ra to the feedforward controller
             if self.fb_control:
-                self.sim.set_R_desired_dot((R.T @ (omega_hat_x)).T)
-
+                self.sim.set_R_desired_dot((Ra.T @ (omega_hat_k)).T)
 
             # - Simulator euler step integration
             self.sim.int_euler()
@@ -255,7 +267,7 @@ class sim_thm2:
 
         self.txt_title.set_text("N = {0:} | t = {1:>5.2f} [T] \n".format(self.n_agents, i*self.dt, int(self.wx/np.pi)) +
                                 "$w^k$ = $[${}$\pi,0,0]$ | $k_\omega$ = {:.1f} | ".format(int(self.wx/np.pi), self.sim.kw[0]) +
-                                "$w^u$ = $[0,0,\pi/${}$]$".format(int(np.pi/self.wd)))
+                                "$w^u$ = $[0,0,-\pi/${}$]$".format(int(np.pi/abs(self.wd))))
 
 
     def generate_animation(self, output_folder, tf_anim=None, dpi=100, n_tail=200, lims=None, gif=False, fps=None):
@@ -275,7 +287,7 @@ class sim_thm2:
 
         # -- Plotting the summary --
         # Figure and grid init
-        fig = plt.figure(figsize=(6,6), dpi=dpi)
+        fig = plt.figure(figsize=(6,7), dpi=dpi)
         grid = plt.GridSpec(1, 1, hspace=0.1, wspace=0.4)
 
         main_ax  = fig.add_subplot(grid[:, :], projection='3d')
@@ -292,8 +304,8 @@ class sim_thm2:
         main_ax.grid(True)
 
         self.txt_title = main_ax.set_title("N = {0:} | t = {1:>5.2f} [T] \n".format(self.n_agents, 0, int(self.wx/np.pi)) +
-                                           "$w^k$ = $[${}$\pi,0,0]$ | $k_\omega$ = {:.1f} | ".format(int(self.wx/np.pi), self.sim.kw[0]) +
-                                           "$w^u$ = $[0,0,${}$\pi]".format(int(self.wd/np.pi)))   
+                                "$w^k$ = $[${}$\pi,0,0]$ | $k_\omega$ = {:.1f} | ".format(int(self.wx/np.pi), self.sim.kw[0]) +
+                                "$w^u$ = $[0,0,${}$\pi/${}$]$".format(int(np.sign(self.wd)),int(np.pi/abs(self.wd))))   
 
         # Draw icons and body frame quivers
         self.icons = main_ax.scatter(self.data["p"][0,:,0], self.data["p"][0,:,1], self.data["p"][0,:,2], 
