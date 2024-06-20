@@ -23,9 +23,9 @@ from simulations.utils.module_ss import module_ss
 from simulations.source_seeking.sigma_common import sigma
 from simulations.source_seeking.sigma_funcs import sigma_gauss
 
-class sim_ss_test:
-    def __init__(self, n_agents=4, tf = 20, dt = 1/60, wx = 6*np.pi,
-                 wd = np.pi, mu_re_star = 0.4, 
+class sim_source_seeking:
+    def __init__(self, n_agents=4, tf = 20, dt = 1/60, wx = 6*np.pi, v = 15,
+                 wd = np.pi/4, mu_re_star = 0.4, 
                  fb_control = True, sim_kw={}):
         self.n_agents = n_agents
         self.tf = tf
@@ -48,7 +48,7 @@ class sim_ss_test:
         # Initial spacial position of the agents
         pc = np.array([-55,-55,-55])
         self.p0 = 2*(np.random.random((n_agents,3)) - 0.49) * 15 + pc
-        self.v0 = 15
+        self.v0 = v
 
         # Generation the initial orientation of the body frames
         alfa_0  = 2*(np.random.rand((n_agents)) - 0.49) * np.pi # YAW
@@ -69,10 +69,11 @@ class sim_ss_test:
         self.arr_len = self.lim*0.05
         
 
-    """\
-    - Function to launch the numerical simulation -
-    """
     def numerical_simulation(self):
+        """\
+        - Function to launch the numerical simulation -
+        """
+
         its = int(self.tf/self.dt) + 1
 
         # Generate the simulation engine
@@ -143,10 +144,10 @@ class sim_ss_test:
             self.ss_module.compute_Lsigma()
 
 
-    """\
-    - Function to generate the summary graphical plot of the whole simulation -
-    """
     def plot_article_figure(self, output_folder=None, dpi=100):
+        """
+        - Function to generate the article figure -
+        """ 
 
         ti, tf = 0, self.tf
         li, lf = int(ti/self.dt), int(tf/self.dt)
@@ -269,10 +270,11 @@ class sim_ss_test:
         plt.show()
 
 
-    """"\
-    - Animation function update -
-    """
     def animate(self, i):
+        """
+        - Animation function update -
+        """
+
         # Update icons
         self.icons._offsets3d = (self.data["p"][i,:,0], self.data["p"][i,:,1], self.data["p"][i,:,2])
         
@@ -299,10 +301,11 @@ class sim_ss_test:
         # return self.ax_arrows
 
 
-    """"\
-    - Funtion to generate the full animation of the simulation -
-    """
     def generate_animation(self, output_folder, dpi=100, tf_anim=None, gif=False, fps=None):
+        """
+        - Funtion to generate the full animation of the simulation -
+        """
+
         if tf_anim is None:
             tf_anim = self.tf
 
@@ -316,10 +319,9 @@ class sim_ss_test:
         # -- Extract data fields from data dictonary --
         p_data = self.data["p"]
         R_data = self.data["R"]
-        error_data = self.data["theta_e"]
         pc_data = self.data["pc"]
-        lsigma_data = self.data["Lsigma"]
-        grad_data = self.data["grad_pc"]
+        # lsigma_data = self.data["Lsigma"]
+        # grad_data = self.data["grad_pc"]
 
         # -- Initial state of the animation --
         # Figure and grid init
