@@ -24,7 +24,8 @@ from simulations.source_seeking.sigma_common import sigma
 from simulations.source_seeking.sigma_funcs import sigma_gauss
 
 class sim_ss_test:
-    def __init__(self, n_agents=4, tf = 20, dt = 1/60, wx = 6*np.pi, 
+    def __init__(self, n_agents=4, tf = 20, dt = 1/60, wx = 6*np.pi,
+                 wd = np.pi, mu_re_star = 0.4, 
                  fb_control = True, sim_kw={}):
         self.n_agents = n_agents
         self.tf = tf
@@ -40,6 +41,9 @@ class sim_ss_test:
         self.wx = wx
         self.fb_control = fb_control
         self.sim_kw = sim_kw
+
+        self.wd = wd
+        self.mu_re_star = mu_re_star
 
         # Initial spacial position of the agents
         pc = np.array([-55,-55,-55])
@@ -72,7 +76,8 @@ class sim_ss_test:
         its = int(self.tf/self.dt) + 1
 
         # Generate the simulation engine
-        self.sim = simulator(p0=self.p0, R0=self.R0, v0=self.v0, dt=self.dt, **self.sim_kw)
+        self.sim = simulator(p0=self.p0, R0=self.R0, v0=self.v0, dt=self.dt, 
+                             kw=np.sqrt(2)*abs(self.wd)/self.mu_re_star)
         self.ss_module = module_ss(self.sim, self.sigma)
 
         # Set the initial derired common orientation
@@ -241,7 +246,12 @@ class sim_ss_test:
         time_vec = np.linspace(self.dt, self.tf, int(self.tf/self.dt))
 
         for n in range(R_data.shape[1]):
-            error_ax.plot(time_vec, error_data[1:,n], "b", lw=1, alpha=0.8)
+            error_ax.plot(time_vec, error_data[1:,n], "b", lw=1, alpha=0.5)
+
+        # Desired attitude error dashed line
+        error_ax.text(1.6, self.mu_re_star+0.2, r"$\mu_{R_e}^*$", color="r")
+        error_ax.text(2.6, self.mu_re_star+0.2, r"= {0:.1f}".format(self.mu_re_star), color="r")
+        error_ax.axhline(self.mu_re_star, c="r", ls="--", lw=1, alpha=1)
         
         # - Distance plot -
         dist_ax.grid(True)
@@ -250,7 +260,7 @@ class sim_ss_test:
         time_vec = np.linspace(self.dt, self.tf, int(self.tf/self.dt))
 
         for n in range(R_data.shape[1]):
-            dist_ax.plot(time_vec, dist_data[1:,n], "b", lw=1, alpha=0.8)
+            dist_ax.plot(time_vec, dist_data[1:,n], "b", lw=1, alpha=0.5)
 
         # Save and show the plot ----------------
         if output_folder is not None:
