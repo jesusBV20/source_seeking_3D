@@ -70,7 +70,10 @@ class sim_thm1:
 
         # Set the initial derired common orientation
         self.L1 = self.L1_1
-        self.sim.set_R_desired(get_R_from_v(self.L1[0]))
+
+        # Generate the ny and nz (ortogonal vector to L1) and set Ra
+        self.Ra_0 = get_R_from_v(self.L1)
+        self.sim.set_R_desired(np.copy(self.Ra_0))
 
         # Initialise the data dictionary with empty arrays
         for data_key in self.data:
@@ -92,35 +95,37 @@ class sim_thm1:
             # Change the vector that we want to aling with X
             if i >= it_2:
                 self.L1 = self.L1_2
+                self.Ra_0 = get_R_from_v(self.L1)
 
-            # Generate the ny and nz (ortogonal vector to L1)
-            R = get_R_from_v(self.L1[0])
+            Ra = np.copy(self.Ra_0)
 
             # Rotate the resultant action R with w = w_x
             omega_hat_xi = omega_hat_xi + self.dt*omega_hat_x
+
+            theta = omega_hat_xi[2,1]
             
             # Ensure that \omega \in [0,2\pi)
-            if omega_hat_xi[2,1] > 2*np.pi:
-                omega_hat_xi = omega_hat_xi[2,1] % (2*np.pi) * omega_hat_x / self.wx
+            if theta > 2*np.pi:
+                omega_hat_xi = theta % (2*np.pi) * omega_hat_xi / theta
             
             # Since our computation of Exp(Ω) is an approximation, next we restrict 
             # the maximum rotation to a fixed step (π/6). E.g., it means that if we need 
             # to perform a π-radian rotation, we will execute six rotations of π/6 each.
             step = np.pi/6
-            if omega_hat_xi[2,1] >= step:
-                for k in range(int(omega_hat_xi[2,1] // (step))):
-                    R = (R.T @ exp_map((step) * omega_hat_x / self.wx)).T
+            if theta >= step:
+                for k in range(int(theta // (step))):
+                    Ra = (Ra.T @ exp_map((step) * omega_hat_xi / theta)).T
                 
-                R = (R.T @ exp_map(omega_hat_xi[2,1] % (step) * omega_hat_x / self.wx)).T
+                Ra = (Ra.T @ exp_map(theta % (step) * omega_hat_xi / theta)).T
             else:
-                R = (R.T @ exp_map(omega_hat_xi)).T
+                Ra = (Ra.T @ exp_map(omega_hat_xi)).T
 
             # Once the rotation is applied, now we set the desired Ra
-            self.sim.set_R_desired(R)
+            self.sim.set_R_desired(Ra)
 
             # Inform to the controller how Rd will change next
             if self.fb_control:
-                self.sim.set_R_desired_dot((R.T @ (omega_hat_x)).T)
+                self.sim.set_R_desired_dot((Ra.T @ (omega_hat_x)).T)
 
 
             # - Simulator euler step integration
@@ -233,11 +238,11 @@ class sim_thm1:
         if i*self.dt < self.t2:
             self.txt_title.set_text("N = {0:} | t = {1:>5.2f} [T] \n".format(self.n_agents, i*self.dt, int(self.wx/np.pi)) +
                                     "$w^k$ = $[${}$\pi,0,0]$ | $k_\omega$ = {:.1f} | ".format(int(self.wx/np.pi), self.sim.kw[0]) +
-                                    "$x_a$ = $[${:.0f}$,${:.0f}$,${:.0f}$]$".format(self.L1_1[0,0], self.L1_1[0,1], self.L1_1[0,2]))
+                                    "$x_a$ = $[${:.0f}$,${:.0f}$,${:.0f}$]$".format(self.L1_1[0], self.L1_1[1], self.L1_1[2])) 
         else:
             self.txt_title.set_text("N = {0:} | t = {1:>5.2f} [T] \n".format(self.n_agents, i*self.dt, int(self.wx/np.pi)) +
                                     "$w^k$ = $[${}$\pi,0,0]$ | $k_\omega$ = {:.1f} | ".format(int(self.wx/np.pi), self.sim.kw[0]) +
-                                    "$x_a$ = $[${:.0f}$,${:.0f}$,${:.0f}$]$".format(self.L1_2[0,0], self.L1_2[0,1], self.L1_2[0,2]))   
+                                    "$x_a$ = $[${:.0f}$,${:.0f}$,${:.0f}$]$".format(self.L1_2[0], self.L1_2[1], self.L1_2[2]))  
 
 
     def generate_animation(self, output_folder, tf_anim=None, dpi=100, n_tail=200, lims=None, gif=False, fps=None):
@@ -275,7 +280,7 @@ class sim_thm1:
 
         self.txt_title = main_ax.set_title("N = {0:} | t = {1:>5.2f} [T] \n".format(self.n_agents, 0, int(self.wx/np.pi)) +
                                            "$w^k$ = $[${}$\pi,0,0]$ | $k_\omega$ = {:.1f} | ".format(int(self.wx/np.pi), self.sim.kw[0]) +
-                                           "$x_a$ = $[${:.0f}$,${:.0f}$,${:.0f}$]$".format(self.L1_1[0,0], self.L1_1[0,1], self.L1_1[0,2]))   
+                                           "$x_a$ = $[${:.0f}$,${:.0f}$,${:.0f}$]$".format(self.L1_1[0], self.L1_1[1], self.L1_1[2]))   
 
         # Draw icons and body frame quivers
         self.icons = main_ax.scatter(self.data["p"][0,:,0], self.data["p"][0,:,1], self.data["p"][0,:,2], 
