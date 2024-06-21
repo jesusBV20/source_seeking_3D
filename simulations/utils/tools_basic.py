@@ -1,13 +1,14 @@
 """\
-# Copyright (C) 2023 Jesús Bautista Villar <jesbauti20@gmail.com>
+# Copyright (C) 2024 Jesús Bautista Villar <jesbauti20@gmail.com>
 """
 
 import os
 
-"""\
-Create a new directory if it doesn't exist -
-"""
+
 def createDir(dir):
+  """
+  Create a new directory if it doesn't exist -
+  """
   try:
     os.mkdir(dir)
     print("Directory '{}' created!".format(dir))

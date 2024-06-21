@@ -1,9 +1,8 @@
 """\
-# Copyright (C) 2023 Jesús Bautista Villar <jesbauti20@gmail.com>
+# Copyright (C) 2024 Jesús Bautista Villar <jesbauti20@gmail.com>
 """
 
 import os
-import time
 import numpy as np
 from tqdm import tqdm
 
@@ -151,8 +150,8 @@ class sim_thm2:
         R_data = self.data["R"]
         error_data = self.data["theta_e"]
         delta_data = self.data["delta"]
-        Re_data = self.data["Re"]
-        log_Re_vee_data = self.data["log_Re_vee"]
+        # Re_data = self.data["Re"]
+        # log_Re_vee_data = self.data["log_Re_vee"]
 
         # -- Plotting the summary --
         # Figure and grid init

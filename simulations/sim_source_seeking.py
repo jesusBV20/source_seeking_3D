@@ -1,9 +1,8 @@
 """\
-# Copyright (C) 2023 Jesús Bautista Villar <jesbauti20@gmail.com>
+# Copyright (C) 2024 Jesús Bautista Villar <jesbauti20@gmail.com>
 """
 
 import os
-import time
 import numpy as np
 from tqdm import tqdm
 

@@ -1,13 +1,14 @@
 """\
-# Copyright (C) 2023 Jesús Bautista Villar <jesbauti20@gmail.com>
+# Copyright (C) 2024 Jesús Bautista Villar <jesbauti20@gmail.com>
 """
 
 import numpy as np
 
-"""\
-- Generate R ∈ SO(3) composing ROLL, PITCH and YAW rotation matrices -
-"""
+
 def rot_3d_matrix(psi, theta, phi, dec=2):
+    """
+    - Generate R ∈ SO(3) composing ROLL, PITCH and YAW rotation matrices -
+    """
     # ROLL
     Rx = np.array([[1,0,0],[0,np.cos(phi),-np.sin(phi)],[0,np.sin(phi),np.cos(phi)]])
     # PITCH
@@ -18,25 +19,48 @@ def rot_3d_matrix(psi, theta, phi, dec=2):
     R = Rx @ Ry @ Rz
     return np.round(R, decimals=dec)
 
-# """\
-# - Compute the vector \omega corresponding to a given R ∈ SO(3) -
-# """
-# def omega_from_R(R):
-#     # Compute the eigenvalues and eigenvectors Rv = λ v
-#     eigval, eigvec = np.linalg.eig(R)
+def get_orthonormal_to_v(v):
+    """
+    - Select one of the possible perpendicular vector to v ∈ R^3 -
+    """
+    vx, vy, vz = v[0], v[1], v[2]
 
-#     # It is known that \omega lies in the null space of (R - I),
-#     # so we can find \omega looking for the eigenvector of R
-#     # corresponding to the eigenvalue λ = 1 
-#     omega = eigvec[:,np.abs(eigval.real - 1) < 0.01].real
-#     return  omega
+    # Capture the singularity
+    if (vz < -0.99999999):
+        n = np.array([0,-1,0])
+    
+    # Perpendicular vector computation
+    else:
+        a = 1/(1 + vz)
+        b = -vx*vy*a
+        n = np.array([1 - a*vx**2, b, -vx])
+    
+    return n
 
-"""\
-- Isomorphism computation: rotation vector \omega <-> so(3)  -
-"""
+def get_R_from_v(v):
+    """
+    - Given the input vector v, build an orthonormal basis and codify into a rotation matrix R ∈ SO(3) -
+    """
+    # Normalization of v
+    md = v / np.linalg.norm(v)
 
-# Generate \omega_\hat ∈ so(3) from the \omega vector
+    # Get an arbitrary (fixed) perperdicular vector
+    md_z = -get_orthonormal_to_v(md)
+
+    # Compute the las orthogonal vector
+    md_y = np.cross(md_z, md)
+
+    # Build the rotation matrix
+    R = np.array([md, md_y, md_z])
+    return R / np.linalg.det(R)
+
+###################################################################
+## Isomorphism computation: rotation vector \omega <-> so(3) ######
+
 def so3_hat(omega):
+    """
+    - Generate \omega_\hat ∈ so(3) from the \omega vector -
+    """
     wx, wy, wz = omega[0], omega[1], omega[2]
     return  np.array([[0,-wz,wy],[wz,0,-wx],[-wy,wx,0]])
 
@@ -45,10 +69,12 @@ def so3_vee(omega_hat):
     wx, wy, wz = omega_hat[2,1], omega_hat[0,2], omega_hat[1,0]
     return  wx, wy, wz
 
-"""\
-- Compute the distance in the tangent plane (theta) corresponding to a given R ∈ SO(3) -
-"""
+###################################################################
+
 def theta_distance_from_R(R):
+    """
+    - Compute the distance in the tangent plane (theta) corresponding to a given R ∈ SO(3) -
+    """
     # We know that Tr(R) = 1 - 2 cosθ  if R ∈ SO(3)
     cos_theta = (np.trace(R) - 1)/2
 
@@ -63,10 +89,10 @@ def theta_distance_from_R(R):
     theta = np.arccos(cos_theta)
     return theta
 
-"""\
-- Compute the exponencial map corresponding to a given tau^\wedge ∈ so(3) -
-"""
 def exp_map(A,n=6):
+    """
+    - Compute the exponencial map corresponding to a given tau^\wedge ∈ so(3) -
+    """
     # Given Exp(A) = \sum_{k=0}^{\infty} \frac{A^k}{k!} as one 
     # possible formal definition of the exponential. We can easily
     # aproximate the exponential as follows:
@@ -78,10 +104,10 @@ def exp_map(A,n=6):
         
     return exp_A
 
-"""\
-- Compute the logaritmic map corresponding to a given R ∈ SO(3) -
-"""
 def log_map_of_R(R, n=5):
+    """
+    - Compute the logaritmic map corresponding to a given R ∈ SO(3) -
+    """
     log_R = np.zeros((3,3))
     theta = theta_distance_from_R(R)
     
@@ -129,38 +155,3 @@ def log_map_of_R(R, n=5):
     log_R[0,0], log_R[1,1], log_R[2,2] = 0, 0, 0
 
     return log_R
-
-"""\
-- Select one of the possible perpendicular vector to v ∈ R^3 -
-"""
-def get_orthonormal_to_v(v):
-    vx, vy, vz = v[0], v[1], v[2]
-
-    # Capture the singularity
-    if (vz < -0.99999999):
-        n = np.array([0,-1,0])
-    
-    # Perpendicular vector computation
-    else:
-        a = 1/(1 + vz)
-        b = -vx*vy*a
-        n = np.array([1 - a*vx**2, b, -vx])
-    
-    return n
-
-"""\
-- Given the input vector v, build an orthonormal basis and codify into a rotation matrix R ∈ SO(3) -
-"""
-def get_R_from_v(v):
-    # Normalization of v
-    md = v / np.linalg.norm(v)
-
-    # Get an arbitrary (fixed) perperdicular vector
-    md_z = -get_orthonormal_to_v(md)
-
-    # Compute the las orthogonal vector
-    md_y = np.cross(md_z, md)
-
-    # Build the rotation matrix
-    R = np.array([md, md_y, md_z])
-    return R / np.linalg.det(R)

@@ -1,5 +1,5 @@
 """\
-# Copyright (C) 2023 Jesús Bautista Villar <jesbauti20@gmail.com>
+# Copyright (C) 2024 Jesús Bautista Villar <jesbauti20@gmail.com>
 -  -
 """
 
@@ -57,11 +57,10 @@ def filter_R_data(R_data):
               "Remember that the correct shape is (time_frames, agents, 3, 3).")
         return None
     
-
-"""\
-- Funtion to visualize the 3D heading trajectory -
-"""
 def plot_heading_traj(R_data, view=(25,-50), lim=1.6, ax=None):
+    """
+    - Funtion to visualize the 3D heading trajectory -
+    """
     # Filtering the input
     R_data = filter_R_data(R_data)
     if R_data is None:
@@ -129,11 +128,10 @@ def plot_heading_traj(R_data, view=(25,-50), lim=1.6, ax=None):
         main_ax.plot(u[0,n,0,0], u[0,n,0,2], "or", zdir='y', zs= lim, markersize=2, alpha=1)
         main_ax.plot(u[0,n,0,1], u[0,n,0,2], "or", zdir='x', zs=-lim, markersize=2, alpha=1)
 
-
-"""\
-- Funtion to visualize a trajectory in SO(3) using \omega \in so(3) (associated Lie algebra) -
-"""
 def plot_so3_traj(R_data, view=(25,-50), lim=5, ax=None):
+    """
+    - Funtion to visualize a trajectory in SO(3) using \omega \in so(3) (associated Lie algebra) -
+    """
     # Filtering the input
     R_data = filter_R_data(R_data)
     if R_data is None:
