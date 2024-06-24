@@ -1,4 +1,4 @@
-# Resilient Source Seeking in 3D (WIP)
+# Resilient Source Seeking in 3D
 
 In this repository, we implement a 3D PD control in SO(3) to align with the ascending direction given by our resilient source-seeking algorithm for robot swarms. To understand the mathematical theory behind this code, we highly recommend to consult our following works:
 
@@ -9,6 +9,8 @@ In this repository, we implement a 3D PD control in SO(3) to align with the asce
       eprint={2406.14998},
       archivePrefix={arXiv},
     }
+
+    WIP
   
 Throughout this project, you will find the following features:
 
