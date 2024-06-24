@@ -2,7 +2,7 @@
 
 In this repository, we implement a 3D PD control in SO(3) to align with the ascending direction given by our resilient source-seeking algorithm for robot swarms. To understand the mathematical theory behind this code, we highly recommend to consult our following works:
 
-    @misc{bautista2024so3,
+    @article{bautista2024so3,
       title={SO(3) attitude controllers and the alignment of robots with non-constant 3D vector fields}, 
       author={Jesus Bautista and Hector Garcia de Marina},
       year={2024},
