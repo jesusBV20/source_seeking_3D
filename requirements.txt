@@ -1,5 +1,8 @@
+## Required python packages ##
+IPython
 matplotlib # 3.6.2
 numpy # 1.26.4
+tqdm
 
 # Optional (they are just used in rssi_heat_map.ipynb)
 scipy # 1.14.0
