@@ -1,6 +1,6 @@
 # Resiliend Source Seeking in 3D
 
-In this repository, we implement a 3D PD control in SO(3) to align with the ascending direction given by our resilient source-seeking algorithm for robot swarms. To understand the mathematical theory behind this code, we highly recommend to consult our following works:
+In this repository, we implement a 3D PD control in SO(3) to align with the ascending direction given by our resilient source-seeking algorithm for robot swarms. For a comprehensive understanding of the mathematical theory underlying this code, we recommend reviewing the following works:
 
     @misc{bautista2024so3attitudecontrollersalignment,
       title={SO(3) attitude controllers and the alignment of robots with non-constant 3D vector fields}, 
@@ -15,15 +15,26 @@ In this repository, we implement a 3D PD control in SO(3) to align with the asce
       year={2024},
       url={https://arxiv.org/abs/2309.02937}, 
     }
-  
-Throughout this project, you will find the following features:
 
-* An implementation of our resilient source-seeking algorithm in 3D.
-* A Proportional + Derivative feedback controller for the 3D heading. It is implemented in SO(3) and works for systems with 3 DOF (degrees of freedom). 
-* Some numerical tools to compute the mathematical expression that we need to work in SO(3) (e.g., different techniques to compute the exp and log map).
-    
--> [Jesús Bautista Villar](https://sites.google.com/view/jbautista-research) is the main maintainer of this repository. He welcomes any inquiries or requests for further information and can be reached via email at <jesbauti20@gmail.com>.
+## Features
+This project includes:
+
+* A 3D resilient source-seeking algorithm implementation.
+* A Proportional-Derivative (PD) feedback controller for 3D heading control, implemented in SO(3) for systems with 3 degrees of freedom (DOF).
+* Numerical tools for computing mathematical expressions necessary to operate in SO(3), (e.g., different techniques to compute the exponential and logarithmic maps).
 
 ## Quick Install
 
-Just run `install.py`.
+To install, simply run:
+
+```bash
+python install.py
+```
+
+## Usage
+
+For an overview of the project's structure and to see the code in action, we recommend running the Jupyter notebook `_technote_simulations.ipynb` located in the `notebooks` directory.
+
+## Credits
+
+This repository is maintained by [Jesús Bautista Villar](https://sites.google.com/view/jbautista-research). For inquiries or further information, feel free to contact him at <jesbauti20@gmail.com>.
