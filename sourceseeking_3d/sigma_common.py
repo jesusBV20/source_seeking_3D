@@ -9,7 +9,7 @@ from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from simulations.source_seeking.toolbox import alpha_cmap
+from .toolbox import alpha_cmap
 
 # Scalar field color map
 MY_CMAP = alpha_cmap(plt.cm.jet, 0.3)

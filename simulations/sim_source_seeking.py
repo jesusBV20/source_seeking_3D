@@ -13,14 +13,14 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, FFMpegWriter, PillowWriter
 
 # -- Numerical tools --
-from simulations.utils.tools_math import *
-from simulations.utils.tools_plot import resolution_dic
+from sourceseeking_3d.utils.tools_math import *
+from sourceseeking_3d.utils.tools_plot import resolution_dic
 
-from simulations.utils.simulator import simulator
-from simulations.utils.module_ss import module_ss
+from sourceseeking_3d.utils.simulator import simulator
+from sourceseeking_3d.utils.module_ss import module_ss
 
-from simulations.source_seeking.sigma_common import sigma
-from simulations.source_seeking.sigma_funcs import sigma_gauss
+from sourceseeking_3d.sigma_common import sigma
+from sourceseeking_3d.sigma_funcs import sigma_gauss
 
 class sim_source_seeking:
     def __init__(self, n_agents=4, tf = 20, dt = 1/60, wx = 6*np.pi, v = 15,

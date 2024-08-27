@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, FFMpegWriter, PillowWriter
 
 # -- Numerical tools --
-from simulations.utils.tools_math import *
-from simulations.utils.simulator import simulator
+from sourceseeking_3d.utils.tools_math import *
+from sourceseeking_3d.utils.simulator import simulator
 
 class sim_thm2:
     def __init__(self, wx, wd, mu_re_star, L1, 

@@ -5,7 +5,7 @@
 
 import numpy as np
 
-from simulations.source_seeking.toolbox import filter_X_3D
+from .toolbox import filter_X_3D
 
 # Matrix Q dot each row of X
 Q_prod_xi = lambda Q,X: (Q @ X.T).T

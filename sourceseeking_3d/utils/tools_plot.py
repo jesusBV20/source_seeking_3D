@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # -- Numerical tools --
-from simulations.utils.tools_math import *
+from .tools_math import *
 
 # DPI resolution dictionary
 resolution_dic = {

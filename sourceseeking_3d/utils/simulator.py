@@ -5,7 +5,7 @@
 import numpy as np
 
 # -- Numerical tools --
-from simulations.utils.tools_math import *
+from .tools_math import *
 
 class simulator:
     def __init__(self, p0, R0, v0, dt=1/60, kw=1):
