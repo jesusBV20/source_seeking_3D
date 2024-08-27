@@ -178,13 +178,16 @@ class sim_source_seeking:
         error_ax.set_ylabel(r"$\mu_{R_e}$")
         error_ax.grid(True)
 
-        dist_ax.set_ylabel(r"$\|p_i(t) - p^*\|$")
+        dist_ax.set_ylabel(r"$||p_i(t) - p^*||$ [L]")
         dist_ax.set_xlabel(r"t [T]")
         dist_ax.grid(True)
         
         # - 3D main plot -
         # Draw the scalar field
         self.sigma.draw_3D(fig=fig, ax=main_ax, lim=self.lim, contour_levels=30, offsets=[1,1,-1])
+        main_ax.set_xlabel(r"$X$ [L]")
+        main_ax.set_ylabel(r"$Y$ [L]")
+        main_ax.set_zlabel(r"$Z$ [L]")
 
         # Text
         n=0
@@ -246,7 +249,7 @@ class sim_source_seeking:
         time_vec = np.linspace(self.dt, self.tf, int(self.tf/self.dt))
 
         for n in range(R_data.shape[1]):
-            error_ax.plot(time_vec, error_data[1:,n], "b", lw=1, alpha=0.5)
+            error_ax.plot(time_vec, error_data[1:,n], "b", lw=1, alpha=0.3)
 
         # Desired attitude error dashed line
         error_ax.text(1.6, self.mu_re_star+0.2, r"$\mu_{R_e}^*$", color="r")
@@ -260,7 +263,7 @@ class sim_source_seeking:
         time_vec = np.linspace(self.dt, self.tf, int(self.tf/self.dt))
 
         for n in range(R_data.shape[1]):
-            dist_ax.plot(time_vec, dist_data[1:,n], "b", lw=1, alpha=0.5)
+            dist_ax.plot(time_vec, dist_data[1:,n], "b", lw=1, alpha=0.3)
 
         # Save and show the plot ----------------
         if output_folder is not None:
