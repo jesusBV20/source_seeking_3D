@@ -1,0 +1,6 @@
+matplotlib # 3.6.2
+numpy # 1.26.4
+
+# Optional (they are just used in rssi_heat_map.ipynb)
+scipy # 1.14.0
+pandas  # 2.0.1
