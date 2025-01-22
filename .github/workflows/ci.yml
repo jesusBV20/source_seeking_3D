@@ -21,4 +21,4 @@ jobs:
   build:
     uses: jesusBV20/source_seeking/.github/workflows/ci.yml@master
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PUSH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
