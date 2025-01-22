@@ -33,7 +33,7 @@ python install.py
 
 ## Usage
 
-For an overview of the project's structure and to see the code in action, we recommend running the Jupyter notebook `_technote_simulations.ipynb` located in the `notebooks` directory.
+For an overview of the project's structure and to see the code in action, we recommend running the Jupyter notebooks located in the `notebooks` directory.
 
 ## Credits
 
