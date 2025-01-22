@@ -25,7 +25,7 @@ This project includes:
 
 ## Quick Install
 
-To install, simply run:
+To install, run:
 
 ```bash
 python install.py
@@ -33,8 +33,8 @@ python install.py
 
 ## Usage
 
-For an overview of the project's structure and to see the code in action, we recommend running the Jupyter notebooks located in the `notebooks` directory.
+We recommend running the Jupyter notebooks in the `notebooks` directory to get an overview of the project's structure and see the code in action.
 
 ## Credits
 
-This repository is maintained by [Jesús Bautista Villar](https://sites.google.com/view/jbautista-research). For inquiries or further information, feel free to contact him at <jesbauti20@gmail.com>.
+This repository is maintained by [Jesús Bautista Villar](https://sites.google.com/view/jbautista-research). For inquiries or further information, please get in touch with him at <jesbauti20@gmail.com>.
