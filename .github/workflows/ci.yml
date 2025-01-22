@@ -16,7 +16,7 @@ jobs:
   trigger-event:
     runs-on: ubuntu-latest
     env:
-      TARGET_REPOSITORY: "jesusBV20/source_seeking"
+      TARGET_REPOSITORY: "Swarm-Systems-Lab/source_seeking"
     steps:
       - name: Fire event
         run: |
