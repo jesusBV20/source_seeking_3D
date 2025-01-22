@@ -1,4 +1,4 @@
-name: Update Collection
+name: Send repository dispatch event
 
 on:
 
@@ -12,13 +12,18 @@ on:
 
   workflow_dispatch:
 
-concurrency:
-  group: ${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-
-  build:
-    uses: jesusBV20/source_seeking/.github/workflows/ci.yml@master
-    secrets:
-      PUSH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  trigger-event:
+    runs-on: ubuntu-latest
+    env:
+      TARGET_REPOSITORY: "jesusBV20/source_seeking"
+    steps:
+      - name: Fire event
+        run: |
+          curl -L \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.REPOSITORY_ACCESS_TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/${TARGET_REPOSITORY}/dispatches \
+            -d '{"event_type":"dispatch-event"}'
