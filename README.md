@@ -23,13 +23,16 @@ This project includes:
 * A Proportional-Derivative (PD) feedback controller for 3D heading control, implemented in SO(3) for systems with 3 degrees of freedom (DOF).
 * Numerical tools for computing mathematical expressions necessary to operate in SO(3), (e.g., different techniques to compute the exponential and logarithmic maps).
 
-## Quick Install
+## Installation
 
-To install, run:
+To install the required dependencies, simply run:
 
 ```bash
 python install.py
 ```
+
+### Additional Dependencies
+Some additional dependencies, such as LaTeX fonts and FFmpeg, may be required. We recommend following the installation instructions provided in the ```ssl_simulator``` [README](https://github.com/Swarm-Systems-Lab/ssl_simulator/blob/master/README.md). 
 
 ## Usage
 
