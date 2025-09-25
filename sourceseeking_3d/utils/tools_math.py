@@ -3,7 +3,7 @@
 """
 
 import numpy as np
-
+import math
 
 def rot_3d_matrix(psi, theta, phi, dec=2):
     """
@@ -100,7 +100,7 @@ def exp_map(A,n=6):
     exp_A, A_i = np.eye(3), np.eye(3)
     for i in range(n):
         A_i = A_i @ A
-        exp_A = exp_A + A_i / np.math.factorial(i+1)
+        exp_A = exp_A + A_i / math.factorial(i+1)
         
     return exp_A
 
